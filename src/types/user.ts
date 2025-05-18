@@ -2,7 +2,9 @@ export interface UserType {
     _id: string;
     username: string;
     email: string;
-    role: "user" | "admin";
+    role: "student" | "admin" | "teacher" | "parent";
+    name: string;
+    surname: string;
     createdAt: string;
     updatedAt: string;
 }
