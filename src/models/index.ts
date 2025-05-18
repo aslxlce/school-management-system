@@ -1,0 +1,14 @@
+export { default as Admin } from './Admin';
+export { default as Student } from './Student';
+export { default as Teacher } from './Teacher';
+export { default as Parent } from './Parent';
+export { default as Grade } from './Grade';
+export { default as Class } from './Class';
+export { default as Subject } from './Subject';
+export { default as Lesson } from './Lesson';
+export { default as Exam } from './Exam';
+export { default as Assignment } from './Assignment';
+export { default as Result } from './Result';
+export { default as Attendance } from './Attendance';
+export { default as Event } from './Event';
+export { default as Announcement } from './Announcement';
