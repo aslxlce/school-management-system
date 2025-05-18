@@ -1,7 +1,7 @@
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import dbConnect from "./dbConnection";
-import UserModel from "@/models/user";
+import UserModel from "@/models/User";
 import { AuthOptions, getServerSession } from "next-auth";
 
 export const authOptions = {
