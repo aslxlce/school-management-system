@@ -80,7 +80,7 @@ import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import dbConnect from "./dbConnection";
 import { UserModel } from "@/models/User";
-import { AuthOptions, getServerSession } from "next-auth";
+import { getServerSession } from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import bcrypt from "bcryptjs";
 
@@ -134,8 +134,12 @@ export const authOptions: NextAuthOptions = {
             }
             return token;
         },
+        // async redirect({ url, baseUrl }) {
+        //     // Role-based redirection
+        //     return baseUrl;
+        // },
         async redirect({ url, baseUrl }) {
-            // Role-based redirection
+            // Always fallback to base URL, dynamic redirection happens client-side
             return baseUrl;
         },
     },
@@ -143,5 +147,6 @@ export const authOptions: NextAuthOptions = {
 
 export const getSession = async () => {
     const session = await getServerSession(authOptions);
-    return session?.user ?? null;
+    if (session) return session.user as IUserBase;
+    else return null;
 };

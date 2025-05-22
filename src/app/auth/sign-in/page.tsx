@@ -105,6 +105,26 @@ export default function SignInPage() {
         resolver: zodResolver(loginSchema),
     });
 
+    // const onSubmit = async (data: LoginFormData) => {
+    //     try {
+    //         const result = await signIn("credentials", {
+    //             username: data.username,
+    //             password: data.password,
+    //             redirect: false,
+    //         });
+
+    //         if (result?.error) {
+    //             setError("root", { message: result.error });
+    //             return;
+    //         }
+
+    //         router.push(`/admin`);
+    //         router.refresh();
+    //     } catch (error) {
+    //         setError("root", { message: "An error occurred during sign in" });
+    //     }
+    // };
+
     const onSubmit = async (data: LoginFormData) => {
         try {
             const result = await signIn("credentials", {
@@ -118,7 +138,17 @@ export default function SignInPage() {
                 return;
             }
 
-            router.push("/");
+            // Get session to access role
+            const res = await fetch("/api/auth/session");
+            const session = await res.json();
+            const role = session?.user?.role;
+
+            if (role) {
+                router.push(`/${role}`);
+            } else {
+                router.push("/"); // fallback
+            }
+
             router.refresh();
         } catch (error) {
             setError("root", { message: "An error occurred during sign in" });

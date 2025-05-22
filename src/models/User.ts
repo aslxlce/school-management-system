@@ -110,21 +110,20 @@
 // export { UserModel, TeacherModel, StudentModel, ParentModel, AdminModel };
 // export type { IUser, ITeacher, IStudent, IParent, IAdmin };
 
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 import bcrypt from "bcryptjs";
 
 // Base User Interface
-interface IUserBase extends Document {
-    _id: string;
+interface IUserBase extends Document<Types.ObjectId> {
     username: string;
     password: string;
+    role?: string;
     comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
-// Define the base schema
+// Base Schema
 const baseUserSchema = new Schema<IUserBase>(
     {
-        _id: String,
         username: { type: String, unique: true, required: true },
         password: { type: String, required: true },
     },
@@ -134,7 +133,7 @@ const baseUserSchema = new Schema<IUserBase>(
     }
 );
 
-// Password hashing
+// Hash password before saving
 baseUserSchema.pre("save", async function (next) {
     if (this.isModified("password")) {
         this.password = await bcrypt.hash(this.password, 10);
@@ -142,76 +141,87 @@ baseUserSchema.pre("save", async function (next) {
     next();
 });
 
-// Password comparison method
+// Add method to compare passwords
 baseUserSchema.methods.comparePassword = async function (candidatePassword: string) {
     return bcrypt.compare(candidatePassword, this.password);
 };
 
-const UserModel = mongoose.models.User || mongoose.model<IUserBase>("User", baseUserSchema);
+// Prevent redefining the model in development
+const UserModel = mongoose.models["User"] || mongoose.model<IUserBase>("User", baseUserSchema);
 
-// ------------------------------
-// Admin Schema
-const AdminModel = UserModel.discriminator(
-    "admin",
-    new Schema({}, { _id: false }) // no extra fields
-);
+// ------------------------------------
+// Register Discriminators Only Once
+// ------------------------------------
 
-// ------------------------------
-// Student Schema
-const StudentModel = UserModel.discriminator(
-    "student",
-    new Schema(
-        {
-            name: { type: String, required: true },
-            surname: { type: String, required: true },
-            email: { type: String, unique: true, sparse: true },
-            phone: { type: String, unique: true, sparse: true },
-            address: { type: String, required: true },
-            img: String,
-            sex: { type: String, enum: ["MALE", "FEMALE"], required: true },
-            parentId: { type: String, ref: "Parent", required: true },
-            classId: { type: Number, ref: "Class", required: true },
-            gradeId: { type: Number, ref: "Grade", required: true },
-            birthday: { type: Date, required: true },
-        },
-        { _id: false }
-    )
-);
+let AdminModel = mongoose.models["admin"];
+let StudentModel = mongoose.models["student"];
+let ParentModel = mongoose.models["parent"];
+let TeacherModel = mongoose.models["teacher"];
 
-// ------------------------------
-// Parent Schema
-const ParentModel = UserModel.discriminator(
-    "parent",
-    new Schema(
-        {
-            name: { type: String, required: true },
-            surname: { type: String, required: true },
-            email: { type: String, unique: true, sparse: true },
-            phone: { type: String, unique: true, required: true },
-            address: { type: String, required: true },
-        },
-        { _id: false }
-    )
-);
+// Admin
+if (!AdminModel) {
+    AdminModel = UserModel.discriminator("admin", new Schema({}, { _id: false }));
+}
 
-// ------------------------------
-// Teacher Schema
-const TeacherModel = UserModel.discriminator(
-    "teacher",
-    new Schema(
-        {
-            name: { type: String, required: true },
-            surname: { type: String, required: true },
-            email: { type: String, unique: true, sparse: true },
-            phone: { type: String, unique: true, sparse: true },
-            address: { type: String, required: true },
-            img: String,
-            sex: { type: String, enum: ["MALE", "FEMALE"], required: true },
-            subjects: [{ type: Number, ref: "Subject" }],
-            birthday: { type: Date, required: true },
-        },
-        { _id: false }
-    )
-);
+// Student
+if (!StudentModel) {
+    StudentModel = UserModel.discriminator(
+        "student",
+        new Schema(
+            {
+                name: { type: String, required: true },
+                surname: { type: String, required: true },
+                email: { type: String, unique: true, sparse: true },
+                phone: { type: String, unique: true, sparse: true },
+                address: { type: String, required: true },
+                img: String,
+                sex: { type: String, enum: ["MALE", "FEMALE"], required: true },
+                parentId: { type: String, ref: "Parent", required: true },
+                classId: { type: Number, ref: "Class", required: true },
+                gradeId: { type: Number, ref: "Grade", required: true },
+                birthday: { type: Date, required: true },
+            },
+            { _id: false }
+        )
+    );
+}
+
+// Parent
+if (!ParentModel) {
+    ParentModel = UserModel.discriminator(
+        "parent",
+        new Schema(
+            {
+                name: { type: String, required: true },
+                surname: { type: String, required: true },
+                email: { type: String, unique: true, sparse: true },
+                phone: { type: String, unique: true, required: true },
+                address: { type: String, required: true },
+            },
+            { _id: false }
+        )
+    );
+}
+
+// Teacher
+if (!TeacherModel) {
+    TeacherModel = UserModel.discriminator(
+        "teacher",
+        new Schema(
+            {
+                name: { type: String, required: true },
+                surname: { type: String, required: true },
+                email: { type: String, unique: true, sparse: true },
+                phone: { type: String, unique: true, sparse: true },
+                address: { type: String, required: true },
+                img: String,
+                sex: { type: String, enum: ["male", "female"], required: true },
+                subject: [{ type: Number, ref: "Subject" }],
+                birthday: { type: Date, required: true },
+            },
+            { _id: false }
+        )
+    );
+}
 
 export { UserModel, AdminModel, StudentModel, ParentModel, TeacherModel };
