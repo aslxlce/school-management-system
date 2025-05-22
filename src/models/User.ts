@@ -216,7 +216,7 @@ if (!TeacherModel) {
                 address: { type: String, required: true },
                 img: String,
                 sex: { type: String, enum: ["male", "female"], required: true },
-                subject: [{ type: Number, ref: "Subject" }],
+                subject: [{ type: String, ref: "Subject" }],
                 birthday: { type: Date, required: true },
             },
             { _id: false }
