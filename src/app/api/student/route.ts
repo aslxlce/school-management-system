@@ -1,12 +1,12 @@
 import dbConnect from "@/lib/dbConnection";
-import { TeacherModel } from "@/models/User";
+import { StudentModel } from "@/models/User";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
     try {
         const userData = await req.json();
         await dbConnect();
-        const newUser = await TeacherModel.create(userData);
+        const newUser = await StudentModel.create(userData);
         return NextResponse.json(
             { message: `User '${newUser.name} ${newUser.surname}' created successfully!` },
             { status: 201 }

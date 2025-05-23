@@ -4,10 +4,10 @@ export async function doLogout() {
     await signOut({ redirect: true, callbackUrl: "/" });
 }
 
-export async function doCredentialLogin(loginData: { email: string; password: string }) {
+export async function doCredentialLogin(loginData: { username: string; password: string }) {
     console.log(loginData);
     const response = await signIn("credentials", {
-        email: loginData.email,
+        username: loginData.username,
         password: loginData.password,
         redirect: false,
     });

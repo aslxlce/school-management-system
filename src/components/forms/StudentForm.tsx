@@ -5,6 +5,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import InputField from "../InputField";
 import Image from "next/image";
+import { createStudent } from "@/action/client/student";
+import { useState } from "react";
 
 const schema = z.object({
     username: z
@@ -13,11 +15,13 @@ const schema = z.object({
         .max(20, { message: "Must be at most 20 characters long!" }),
     email: z.string().email({ message: "Invalid email address!" }),
     password: z.string().min(8, { message: "Must be at least 8 characters long!" }),
-    firstName: z.string().min(1, { message: "Required !" }),
-    lastName: z.string().min(1, { message: "Required !" }),
+    name: z.string().min(1, { message: "Required !" }),
+    surname: z.string().min(1, { message: "Required !" }),
     phone: z.string().min(1, { message: "Required !" }),
     adress: z.string().min(1, { message: "Required !" }),
-    bloodType: z.string().min(1, { message: "Required !" }),
+    parentId: z.string().min(1, { message: "Required !" }),
+    classId: z.number().min(1, { message: "Required !" }),
+    gradeId: z.number().min(1, { message: "Required !" }),
     birthday: z.date({ message: "Required !" }),
     sex: z.enum(["male", "female"], { message: "Required !" }),
     img: z.instanceof(File, { message: "Required !" }),
@@ -34,8 +38,30 @@ const StudentForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
         resolver: zodResolver(schema),
     });
 
-    const onSubmit = handleSubmit((data) => {
-        console.log(data);
+    // const onSubmit = handleSubmit((data) => {
+    //     console.log(data);
+    // });
+
+    const [submitting, setSubmitting] = useState(false);
+
+    const onSubmit = handleSubmit(async (data) => {
+        const formData = new FormData();
+
+        Object.entries(data).forEach(([key, value]) => {
+            if (key === "img" && value instanceof File) {
+                formData.append(key, value);
+            } else {
+                formData.append(key, value as string);
+            }
+        });
+
+        try {
+            const response = await createStudent(formData);
+            console.log("Teacher created:", response);
+        } catch (err) {
+            console.error("Error creating teacher:", err);
+        }
+        console.log(formData);
     });
     return (
         <form className="flex flex-col gap-8" onSubmit={onSubmit}>
@@ -69,18 +95,18 @@ const StudentForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
             <span className="text-xs text-gray-400 font-medium">Personal Information</span>
             <div className="flex justify-between flex-wrap gap-4">
                 <InputField
-                    label="First Name"
-                    name="firstName"
-                    defaultValue={data?.firstName}
+                    label="Name"
+                    name="name"
+                    defaultValue={data?.name}
                     register={register}
-                    error={errors?.firstName}
+                    error={errors?.name}
                 />
                 <InputField
-                    label="Last Name"
-                    name="lastName"
-                    defaultValue={data?.lastName}
+                    label="Surname"
+                    name="surname"
+                    defaultValue={data?.surname}
                     register={register}
-                    error={errors?.lastName}
+                    error={errors?.surname}
                 />
                 <InputField
                     label="Phone"
@@ -97,11 +123,25 @@ const StudentForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
                     error={errors?.adress}
                 />
                 <InputField
-                    label="Blood Type"
-                    name="bloodType"
-                    defaultValue={data?.bloodType}
+                    label="Parent ID"
+                    name="parentId"
+                    defaultValue={data?.parentId}
                     register={register}
-                    error={errors?.bloodType}
+                    error={errors?.parentId}
+                />
+                <InputField
+                    label="Class ID"
+                    name="classId"
+                    defaultValue={data?.classId}
+                    register={register}
+                    error={errors?.classId}
+                />
+                <InputField
+                    label="Grade ID"
+                    name="gradeId"
+                    defaultValue={data?.gradeId}
+                    register={register}
+                    error={errors?.gradeId}
                 />
                 <InputField
                     label="Birthday"
@@ -140,8 +180,12 @@ const StudentForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
                     )}
                 </div>
             </div>
-            <button className="bg-blue-400 text-white p-2 rounded-md">
-                {type === "create" ? "Create" : "Update"}
+            <button
+                type="submit"
+                className="bg-blue-500 text-white p-2 rounded-md"
+                disabled={submitting}
+            >
+                {submitting ? "Submitting..." : type === "create" ? "Create" : "Update"}
             </button>
         </form>
     );
