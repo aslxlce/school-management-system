@@ -1,4 +1,5 @@
 declare interface IUserBase {
+    id: string;
     username: string;
     role: "student" | "admin" | "teacher" | "parent";
 }

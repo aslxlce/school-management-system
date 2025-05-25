@@ -63,7 +63,7 @@ if (!StudentModel) {
                 phone: { type: String, unique: true, sparse: true },
                 address: { type: String, required: true },
                 img: String,
-                sex: { type: String, enum: ["MALE", "FEMALE"], required: true },
+                sex: { type: String, enum: ["male", "female"], required: true },
                 parentId: { type: String, ref: "Parent", required: true },
                 classId: { type: Number, ref: "Class", required: true },
                 gradeId: { type: Number, ref: "Grade", required: true },
