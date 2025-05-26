@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import axios from "axios";
 
 type Teacher = {
     id: string;
@@ -61,15 +62,17 @@ const TeacherListPage = () => {
     const { data: session } = useSession();
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchTeachers = async () => {
             try {
-                const response = await fetch('/api/teachers');
-                const data = await response.json();
-                setTeachers(data);
-            } catch (error) {
-                console.error('Failed to fetch teachers:', error);
+                const response = await axios.get('/api/teachers');
+                setTeachers(response.data);
+                setError(null);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to fetch teachers');
+                console.error('Failed to fetch teachers:', err);
             } finally {
                 setLoading(false);
             }
@@ -79,7 +82,15 @@ const TeacherListPage = () => {
     }, []);
 
     if (loading) {
-        return <div>Loading...</div>;
+        return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    }
+
+    if (error) {
+        return <div className="text-red-500 text-center">Error: {error}</div>;
+    }
+
+    if (session?.user?.role !== "admin") {
+        return <div className="text-center p-4">Unauthorized</div>;
     }
 
     const renderRow = (item: Teacher) => (
@@ -119,10 +130,6 @@ const TeacherListPage = () => {
             </td>
         </tr>
     );
-
-    if (session?.user?.role !== "admin") {
-        return <div>Unauthorized</div>;
-    }
 
     return (
         <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
