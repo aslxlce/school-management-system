@@ -218,6 +218,8 @@
 
 // export default TeachersPage;
 
+// app/list/teachers/page.tsx
+
 export const dynamic = "force-dynamic";
 
 import Image from "next/image";
@@ -226,6 +228,10 @@ import Table from "@/components/Table";
 import { fetchTeachers } from "@/action/server/teacher";
 import FormModal from "@/components/FormModal";
 import { getSession } from "@/lib/auth";
+
+interface PageProps {
+    searchParams?: Record<string, string | string[] | undefined>;
+}
 
 const columns = [
     { header: "Info", accessor: "info" },
@@ -239,11 +245,23 @@ const columns = [
     { header: "Actions", accessor: "actions" },
 ];
 
-interface PageProps {
-    searchParams?: Record<string, string | string[] | undefined>;
-}
+type IUserTeacher = {
+    id: string;
+    username: string;
+    name: string;
+    surname: string;
+    email?: string;
+    subject: string;
+    gradeLevel: string;
+    phone: string;
+    sex: string;
+    birthday: string;
+    address: string;
+    img?: string;
+};
 
 const TeachersPage = async ({ searchParams }: PageProps) => {
+    // 1) Parse current page from query string
     const pageRaw = searchParams?.page;
     const currentPage = Array.isArray(pageRaw)
         ? parseInt(pageRaw[0] || "1", 10)
@@ -251,6 +269,7 @@ const TeachersPage = async ({ searchParams }: PageProps) => {
 
     const limit = 10;
 
+    // 2) Fetch session and paginated teachers data in parallel
     const [session, teacherData] = await Promise.all([
         getSession(),
         fetchTeachers(currentPage, limit),
@@ -258,9 +277,10 @@ const TeachersPage = async ({ searchParams }: PageProps) => {
 
     const { data: teachers, totalPages } = teacherData;
 
+    // 3) Render each teacher row
     const renderRow = (teacher: IUserTeacher) => (
         <tr
-            key={teacher.id.toString()}
+            key={teacher.id}
             className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-[var(--purpleeLight-color)]"
         >
             <td className="flex items-center gap-4 p-4">
@@ -296,6 +316,9 @@ const TeachersPage = async ({ searchParams }: PageProps) => {
                             <Image src="/view.png" alt="View" width={16} height={16} />
                         </button>
                     </a>
+                    {session?.role === "admin" && (
+                        <FormModal table="teacher" type="delete" id={parseInt(teacher.id, 10)} />
+                    )}
                 </div>
             </td>
         </tr>

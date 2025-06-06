@@ -1,23 +1,34 @@
+// api/teachers/route.ts
+
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/dbConnection";
 import { TeacherModel } from "@/models/User";
-import { NextRequest, NextResponse } from "next/server";
-// import { getServerSession } from "next-auth";
-// import { authOptions } from "@/lib/auth";
 
-// export async function POST(req: NextRequest) {
-//     try {
-//         const userData = await req.json();
-//         await dbConnect();
-//         const newUser = await TeacherModel.create(userData);
-//         return NextResponse.json(
-//             { message: `User '${newUser.name} ${newUser.surname}' created successfully!` },
-//             { status: 201 }
-//         );
-//     } catch (error) {
-//         console.log(error);
-//         return NextResponse.json({ error: "Failed to create" }, { status: 500 });
-//     }
-// }
+// ────────────────────────────────────────────────────────────────────────────
+// POST: Create a new teacher via multipart/form-data
+// ────────────────────────────────────────────────────────────────────────────
+//
+// The old JSON-based POST is preserved below, commented out, for reference:
+//
+// // import { getServerSession } from "next-auth";
+// // import { authOptions } from "@/lib/auth";
+// //
+// // export async function POST(req: NextRequest) {
+// //     try {
+// //         const userData = await req.json();
+// //         await dbConnect();
+// //         const newUser = await TeacherModel.create(userData);
+// //         return NextResponse.json(
+// //             { message: `User '${newUser.name} ${newUser.surname}' created successfully!` },
+// //             { status: 201 }
+// //         );
+// //     } catch (error) {
+// //         console.log(error);
+// //         return NextResponse.json({ error: "Failed to create" }, { status: 500 });
+// //     }
+// // }
 
 export async function POST(req: NextRequest) {
     try {
@@ -76,81 +87,83 @@ export async function POST(req: NextRequest) {
     }
 }
 
-// export async function GET(req: NextRequest) {
-//     try {
-//         await dbConnect();
-
-//         const searchParams = req.nextUrl.searchParams;
-//         const page = parseInt(searchParams.get("page") || "1", 10);
-//         const limit = parseInt(searchParams.get("limit") || "10", 10);
-//         const skip = (page - 1) * limit;
-
-//         // 🔍 Filter only teachers – make sure this matches your schema setup
-//         const query = { role: "teacher" }; // <-- Adjust this if you use discriminator instead of role field
-
-//         const [data, total] = await Promise.all([
-//             UserModel.find(query).skip(skip).limit(limit),
-//             UserModel.countDocuments(query),
-//         ]);
-
-//         const totalPages = Math.ceil(total / limit);
-
-//         return NextResponse.json({ data, total, page, totalPages });
-//     } catch (error) {
-//         console.error("❌ GET /api/teachers failed:", error);
-//         return NextResponse.json({ error: "Failed to fetch teachers" }, { status: 500 });
-//     }
-// }
+// ────────────────────────────────────────────────────────────────────────────
+// GET: Fetch paginated teachers, only for admins
+// ────────────────────────────────────────────────────────────────────────────
+//
+// The old non-paginated GET is preserved below, commented out, for reference:
+//
+// // export async function GET() {
+// //   try {
+// //     const session = await getServerSession(authOptions);
+// //     if (!session || session.user?.role !== "admin") {
+// //       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// //     }
+// //
+// //     await dbConnect();
+// //     const teachers = await TeacherModel.find({}).select("-password");
+// //     return NextResponse.json(teachers);
+// //   } catch (error) {
+// //     console.error("Failed to fetch teachers:", error);
+// //     return NextResponse.json({ error: "Failed to fetch teachers" }, { status: 500 });
+// //   }
+// // }
 
 export async function GET(req: NextRequest) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session || session.user?.role !== "admin") {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         await dbConnect();
 
-        const page = parseInt(req.nextUrl.searchParams.get("page") || "1");
-        const limit = parseInt(req.nextUrl.searchParams.get("limit") || "5");
+        const page = parseInt(req.nextUrl.searchParams.get("page") || "1", 10);
+        const limit = parseInt(req.nextUrl.searchParams.get("limit") || "10", 10);
         const skip = (page - 1) * limit;
 
-        const total = await TeacherModel.countDocuments();
+        const [teachers, total] = await Promise.all([
+            TeacherModel.find({}).skip(skip).limit(limit).select("-password").lean(),
+            TeacherModel.countDocuments({}),
+        ]);
+
         const totalPages = Math.ceil(total / limit);
 
-        const teachers = await TeacherModel.find().skip(skip).limit(limit).lean();
-
-        return NextResponse.json({
-            data: teachers,
-            total,
-            page,
-            totalPages,
-        });
+        return NextResponse.json({ data: teachers, total, page, totalPages });
     } catch (error) {
         console.error("Failed to fetch teachers:", error);
         return NextResponse.json({ error: "Failed to fetch teachers" }, { status: 500 });
     }
 }
-// export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-//     try {
-//         const session = await getServerSession(authOptions);
-//         if (!session || (session.user?.role !== "admin" && session.user?.id !== params.id)) {
-//             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-//         }
 
-//         const userData = await req.json();
-//         await dbConnect();
-
-//         const updatedUser = await TeacherModel.findByIdAndUpdate(params.id, userData, {
-//             new: true,
-//             runValidators: true,
-//         });
-
-//         if (!updatedUser) {
-//             return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
-//         }
-
-//         return NextResponse.json(
-//             { message: `Teacher updated successfully!`, user: updatedUser },
-//             { status: 200 }
-//         );
-//     } catch (error) {
-//         console.log(error);
-//         return NextResponse.json({ error: "Failed to update teacher" }, { status: 500 });
-//     }
-// }
+// ────────────────────────────────────────────────────────────────────────────
+// The PUT handler is preserved below, commented out, for reference:
+//
+// // export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+// //   try {
+// //     const session = await getServerSession(authOptions);
+// //     if (!session || (session.user?.role !== "admin" && session.user?.id !== params.id)) {
+// //       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// //     }
+// //
+// //     const userData = await req.json();
+// //     await dbConnect();
+// //
+// //     const updatedUser = await TeacherModel.findByIdAndUpdate(params.id, userData, {
+// //       new: true,
+// //       runValidators: true,
+// //     });
+// //
+// //     if (!updatedUser) {
+// //       return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
+// //     }
+// //
+// //     return NextResponse.json(
+// //       { message: `Teacher updated successfully!`, user: updatedUser },
+// //       { status: 200 }
+// //     );
+// //   } catch (error) {
+// //     console.log(error);
+// //     return NextResponse.json({ error: "Failed to update teacher" }, { status: 500 });
+// //   }
+// // }
