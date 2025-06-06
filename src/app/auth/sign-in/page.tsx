@@ -152,6 +152,7 @@ export default function SignInPage() {
             router.refresh();
         } catch (error) {
             setError("root", { message: "An error occurred during sign in" });
+            console.log(error);
         }
     };
 

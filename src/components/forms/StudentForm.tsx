@@ -1,389 +1,317 @@
-// "use client";
-
-// import { zodResolver } from "@hookform/resolvers/zod";
-// import { useForm } from "react-hook-form";
-// import { z } from "zod";
-// import InputField from "../InputField";
-// import Image from "next/image";
-// import { createStudent } from "@/action/client/student";
-// import { useState } from "react";
-
-// const schema = z.object({
-//     username: z.string().min(8, { message: "Must be at least 8 characters long!" }).max(20),
-//     name: z.string(),
-//     password: z.string().min(8, { message: "Must be at least 8 characters long!" }),
-//     surname: z.string(),
-//     email: z.string().email({ message: "Invalid email address!" }),
-//     phone: z.string().min(1),
-//     address: z.string(),
-//     img: z.any(),
-//     sex: z.enum(["male", "female"]),
-//     parentId: z.number(),
-//     classId: z.number(),
-//     gradeId: z.number(),
-//     birthday: z.string(),
-// });
-
-// type Inputs = z.infer<typeof schema>;
-
-// const StudentForm = ({ type, data }: { type: "create" | "update"; data?: any }) => {
-//     const {
-//         register,
-//         handleSubmit,
-//         formState: { errors },
-//     } = useForm<Inputs>({
-//         resolver: zodResolver(schema),
-//     });
-
-//     // const onSubmit = handleSubmit((data) => {
-//     //     console.log(data);
-//     // });
-
-//     const [submitting, setSubmitting] = useState(false);
-
-//     const onSubmit = handleSubmit(async (data) => {
-//         const formData = new FormData();
-
-//         Object.entries(data).forEach(([key, value]) => {
-//             if (key === "img" && value instanceof File) {
-//                 formData.append(key, value);
-//             } else {
-//                 formData.append(key, value as string);
-//             }
-//         });
-
-//         try {
-//             const response = await createStudent(formData);
-//             console.log("Teacher created:", response);
-//         } catch (err) {
-//             console.error("Error creating teacher:", err);
-//         }
-//         console.log(formData);
-//     });
-//     return (
-//         <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-//             <h1 className="text-xl font-semibold">Create a new student</h1>
-//             <span className="text-xs text-gray-400 font-medium">Authentication Information</span>
-//             <div className="flex justify-between flex-wrap gap-4">
-//                 <InputField
-//                     label="Username"
-//                     name="username"
-//                     defaultValue={data?.username}
-//                     register={register}
-//                     error={errors?.username}
-//                 />
-//                 <InputField
-//                     label="Email"
-//                     name="email"
-//                     type="email"
-//                     defaultValue={data?.email}
-//                     register={register}
-//                     error={errors?.email}
-//                 />
-//                 <InputField
-//                     label="Password"
-//                     name="password"
-//                     type="password"
-//                     defaultValue={data?.password}
-//                     register={register}
-//                     error={errors?.password}
-//                 />
-//             </div>
-//             <span className="text-xs text-gray-400 font-medium">Personal Information</span>
-//             <div className="flex justify-between flex-wrap gap-4">
-//                 <InputField
-//                     label="Name"
-//                     name="name"
-//                     defaultValue={data?.name}
-//                     register={register}
-//                     error={errors?.name}
-//                 />
-//                 <InputField
-//                     label="Surname"
-//                     name="surname"
-//                     defaultValue={data?.surname}
-//                     register={register}
-//                     error={errors?.surname}
-//                 />
-//                 <InputField
-//                     label="Phone"
-//                     name="phone"
-//                     defaultValue={data?.phone}
-//                     register={register}
-//                     error={errors?.phone}
-//                 />
-//                 <InputField
-//                     label="Address"
-//                     name="address"
-//                     defaultValue={data?.adress}
-//                     register={register}
-//                     error={errors?.address}
-//                 />
-//                 <InputField
-//                     label="Parent ID"
-//                     name="parentId"
-//                     defaultValue={data?.parentId}
-//                     register={register}
-//                     error={errors?.parentId}
-//                 />
-//                 <InputField
-//                     label="Class ID"
-//                     name="classId"
-//                     defaultValue={data?.classId}
-//                     register={register}
-//                     error={errors?.classId}
-//                 />
-//                 <InputField
-//                     label="Grade ID"
-//                     name="gradeId"
-//                     defaultValue={data?.gradeId}
-//                     register={register}
-//                     error={errors?.gradeId}
-//                 />
-//                 <InputField
-//                     label="Birthday"
-//                     name="birthday"
-//                     defaultValue={data?.birthday}
-//                     register={register}
-//                     error={errors?.birthday}
-//                     type="date"
-//                 />
-
-//                 <div className="flex flex-col gap-2 w-full md:w-1/4">
-//                     <label className="text-xs text-gray-500">Sex</label>
-//                     <select
-//                         className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
-//                         {...register("sex")}
-//                         defaultValue={data?.sex}
-//                     >
-//                         <option value="male">Male</option>
-//                         <option value="female">Female</option>
-//                     </select>
-//                     {errors.sex?.message && (
-//                         <p className="text-xs text-red-400">{errors.sex.message.toString()}</p>
-//                     )}
-//                 </div>
-//                 <div className="flex flex-col gap-2 w-full md:w-1/4 justify-center">
-//                     <label
-//                         className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
-//                         htmlFor="img"
-//                     >
-//                         <Image src="/upload.png" alt="" width={28} height={28} />
-//                         <span className="">Upload a photo</span>
-//                     </label>
-//                     <input type="file" id="img" {...register("img")} className="hidden" />
-//                     {errors.img?.message && (
-//                         <p className="text-xs text-red-400">{errors.img.message.toString()}</p>
-//                     )}
-//                 </div>
-//             </div>
-//             <button
-//                 type="submit"
-//                 className="bg-blue-500 text-white p-2 rounded-md"
-//                 disabled={submitting}
-//             >
-//                 {submitting ? "Submitting..." : type === "create" ? "Create" : "Update"}
-//             </button>
-//         </form>
-//     );
-// };
-
-// export default StudentForm;
-
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import InputField from "../InputField";
+import { gradeOptions } from "@/lib/gradeLessons";
 import Image from "next/image";
 import { createStudent } from "@/action/client/student";
-import { useState } from "react";
+import { fetchParentsByName } from "@/action/client/parent";
+import { fetchClassesByGrade } from "@/action/client/class";
 
+/* ────────────────────────────────
+ * Validation (parentId & classId optional)
+ * ──────────────────────────────── */
 const schema = z.object({
-    username: z.string().min(8, { message: "Must be at least 8 characters long!" }).max(20),
+    username: z.string().min(8).max(20),
+    password: z.string().min(8),
     name: z.string(),
-    password: z.string().min(8, { message: "Must be at least 8 characters long!" }),
     surname: z.string(),
-    email: z.string().email({ message: "Invalid email address!" }),
-    phone: z.string().min(8, { message: "Phone must be valid." }),
+    email: z.string().email().optional().or(z.literal("")),
+    phone: z.string().min(8).optional().or(z.literal("")),
     address: z.string(),
-    img: z.any(),
     sex: z.enum(["male", "female"]),
-    parentId: z.string(),
-    classId: z.string(),
-    gradeId: z.string(),
     birthday: z.string(),
+    grade: z.string().nonempty(),
+    parentId: z.string().optional(),
+    classId: z.string().optional(),
+    img: z
+        .instanceof(FileList)
+        .optional()
+        .refine((val) => (val ? val.length === 1 : true), {
+            message: "Please upload a single file",
+        }),
 });
 
 type Inputs = z.infer<typeof schema>;
 
-const StudentForm = ({ type, data }: { type: "create" | "update"; data?: any }) => {
+export default function StudentForm({
+    type,
+    data,
+}: {
+    type: "create" | "update";
+    data?: Partial<Inputs>;
+}) {
+    /* ────────────── RHF ───────────── */
     const {
         register,
         handleSubmit,
+        watch,
+        setValue,
         formState: { errors },
     } = useForm<Inputs>({
         resolver: zodResolver(schema),
+        defaultValues: data,
     });
 
+    /* ────────────── State ───────────── */
     const [submitting, setSubmitting] = useState(false);
+    const [parentOpts, setParentOpts] = useState<{ id: string; label: string }[]>([]);
+    const [classOpts, setClassOpts] = useState<{ id: string; name: string }[]>([]);
+    const [noParents, setNoParents] = useState(false);
+    const [noClasses, setNoClasses] = useState(false);
 
-    const onSubmit = handleSubmit(async (data) => {
-        const formData = new FormData();
+    /* simple 300 ms debounce without lodash */
+    const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-        Object.entries(data).forEach(([key, value]) => {
-            if (key === "img" && value instanceof File) {
-                formData.append(key, value);
-            } else {
-                formData.append(key, value as string);
+    /* ────────────── Handlers ───────────── */
+
+    /** Parent search (called from input onChange) */
+    const handleParentSearch = (q: string) => {
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+        debounceTimer.current = setTimeout(async () => {
+            if (!q.trim()) {
+                setParentOpts([]);
+                setNoParents(false);
+                return;
+            }
+
+            try {
+                const list = await fetchParentsByName(q);
+                setParentOpts(list.map((p) => ({ id: p._id, label: `${p.name} ${p.surname}` })));
+                setNoParents(list.length === 0);
+            } catch {
+                setParentOpts([]);
+                setNoParents(true);
+            }
+        }, 300);
+    };
+
+    /** When grade changes, fetch classes for that grade */
+    const handleGradeChange = async (g: string) => {
+        setValue("grade", g);
+        setClassOpts([]);
+        setNoClasses(false);
+        if (!g) return;
+
+        try {
+            const list = await fetchClassesByGrade(g);
+            setClassOpts(list.map((c) => ({ id: c._id, name: c.name })));
+            setNoClasses(list.length === 0);
+        } catch {
+            setClassOpts([]);
+            setNoClasses(true);
+        }
+    };
+
+    /* ────────────── Submit ───────────── */
+    const onSubmit = handleSubmit(async (form) => {
+        // Debug log to make sure this handler is running
+        console.log("⏳ Submitting form data:", form);
+
+        const fd = new FormData();
+        Object.entries(form).forEach(([k, v]) => {
+            if (k === "img" && v instanceof FileList && v.length > 0) {
+                fd.append(k, v[0]);
+            } else if (v) {
+                fd.append(k, v as string);
             }
         });
 
         try {
             setSubmitting(true);
-            const response = await createStudent(formData);
-            console.log("Student created:", response);
-        } catch (err) {
-            console.error("Error creating student:", err);
+            await createStudent(fd);
+            // If creation succeeds, reload the page:
+            window.location.reload();
         } finally {
             setSubmitting(false);
         }
-        console.log("Submitted data:", data);
-        formData.forEach((value, key) => {
-            console.log(`${key}:`, value);
-        });
     });
 
+    /* ────────────── JSX ───────────── */
     return (
         <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-            <h1 className="text-xl font-semibold">Create a new student</h1>
-            <span className="text-xs text-gray-400 font-medium">Authentication Information</span>
-            <div className="flex justify-between flex-wrap gap-4">
+            <h1 className="text-xl font-semibold">
+                {type === "create" ? "Create a new student" : "Update student"}
+            </h1>
+
+            {/* ========== AUTH ========== */}
+            <span className="text-xs text-gray-500 font-medium">Authentication</span>
+            <div className="flex flex-wrap gap-4">
                 <InputField
                     label="Username"
                     name="username"
-                    defaultValue={data?.username}
                     register={register}
-                    error={errors?.username}
-                />
-                <InputField
-                    label="Email"
-                    name="email"
-                    type="email"
-                    defaultValue={data?.email}
-                    register={register}
-                    error={errors?.email}
+                    error={errors.username}
                 />
                 <InputField
                     label="Password"
                     name="password"
                     type="password"
-                    defaultValue={data?.password}
                     register={register}
-                    error={errors?.password}
+                    error={errors.password}
+                />
+                <InputField
+                    label="Email (optional)"
+                    name="email"
+                    type="email"
+                    register={register}
+                    error={errors.email}
                 />
             </div>
 
-            <span className="text-xs text-gray-400 font-medium">Personal Information</span>
-            <div className="flex justify-between flex-wrap gap-4">
-                <InputField
-                    label="Name"
-                    name="name"
-                    defaultValue={data?.name}
-                    register={register}
-                    error={errors?.name}
-                />
+            {/* ========== PERSONAL ========== */}
+            <span className="text-xs text-gray-500 font-medium">Personal Info</span>
+            <div className="flex flex-wrap gap-4">
+                <InputField label="Name" name="name" register={register} error={errors.name} />
                 <InputField
                     label="Surname"
                     name="surname"
-                    defaultValue={data?.surname}
                     register={register}
-                    error={errors?.surname}
+                    error={errors.surname}
                 />
                 <InputField
-                    label="Phone"
+                    label="Phone (optional)"
                     name="phone"
-                    defaultValue={data?.phone}
                     register={register}
-                    error={errors?.phone}
+                    error={errors.phone}
                 />
                 <InputField
                     label="Address"
                     name="address"
-                    defaultValue={data?.address}
                     register={register}
-                    error={errors?.address}
-                />
-                <InputField
-                    label="Parent ID"
-                    name="parentId"
-                    defaultValue={data?.parentId}
-                    register={register}
-                    error={errors?.parentId}
-                />
-                <InputField
-                    label="Class ID"
-                    name="classId"
-                    defaultValue={data?.classId}
-                    register={register}
-                    error={errors?.classId}
-                />
-                <InputField
-                    label="Grade ID"
-                    name="gradeId"
-                    defaultValue={data?.gradeId}
-                    register={register}
-                    error={errors?.gradeId}
-                />
-                <InputField
-                    label="Birthday"
-                    name="birthday"
-                    defaultValue={data?.birthday}
-                    register={register}
-                    error={errors?.birthday}
-                    type="date"
+                    error={errors.address}
                 />
 
-                <div className="flex flex-col gap-2 w-full md:w-1/4">
+                {/* Sex */}
+                <div className="flex flex-col gap-1 w-full sm:w-1/4">
                     <label className="text-xs text-gray-500">Sex</label>
                     <select
-                        className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
                         {...register("sex")}
-                        defaultValue={data?.sex}
+                        className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm"
                     >
                         <option value="male">Male</option>
                         <option value="female">Female</option>
                     </select>
-                    {errors.sex?.message && (
-                        <p className="text-xs text-red-400">{errors.sex.message.toString()}</p>
-                    )}
+                    {errors.sex && <p className="text-xs text-red-400">{errors.sex.message}</p>}
                 </div>
 
-                <div className="flex flex-col gap-2 w-full md:w-1/4 justify-center">
-                    <label
-                        className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer"
-                        htmlFor="img"
+                {/* Birthday */}
+                <InputField
+                    label="Birthday"
+                    name="birthday"
+                    type="date"
+                    register={register}
+                    error={errors.birthday}
+                />
+            </div>
+
+            {/* ========== ENROLLMENT ========== */}
+            <span className="text-xs text-gray-500 font-medium">Enrollment</span>
+            <div className="flex flex-wrap gap-4">
+                {/* Grade selector */}
+                <div className="flex flex-col gap-1 w-full sm:w-1/4">
+                    <label className="text-xs text-gray-500">Grade</label>
+                    <select
+                        defaultValue={data?.grade ?? ""}
+                        onChange={(e) => handleGradeChange(e.target.value)}
+                        className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm"
                     >
-                        <Image src="/upload.png" alt="Upload" width={28} height={28} />
-                        <span className="">Upload a photo</span>
+                        <option value="">Select grade</option>
+                        {gradeOptions.map((g) => (
+                            <option key={g} value={g}>
+                                {g}
+                            </option>
+                        ))}
+                    </select>
+                    {errors.grade && <p className="text-xs text-red-400">{errors.grade.message}</p>}
+                </div>
+
+                {/* Class selector — appears after grade fetch */}
+                {watch("grade") && (
+                    <div className="flex flex-col gap-1 w-full sm:w-1/3">
+                        <label className="text-xs text-gray-500">
+                            Class&nbsp;
+                            <span className="italic text-gray-400">(optional)</span>
+                        </label>
+
+                        {noClasses ? (
+                            <p className="text-sm text-red-400 py-2">
+                                No classes found for this grade
+                            </p>
+                        ) : (
+                            <select
+                                {...register("classId")}
+                                defaultValue=""
+                                className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm"
+                            >
+                                <option value="">— none —</option>
+                                {classOpts.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+                )}
+
+                {/* Parent search */}
+                <div className="flex flex-col gap-1 w-full sm:w-1/3 relative">
+                    <label className="text-xs text-gray-500">
+                        Parent&nbsp;<span className="italic text-gray-400">(optional)</span>
                     </label>
-                    <input type="file" id="img" {...register("img")} className="hidden" />
-                    {errors.img?.message && (
-                        <p className="text-xs text-red-400">{errors.img.message.toString()}</p>
+                    <input
+                        type="text"
+                        placeholder="Start typing parent name…"
+                        onChange={(e) => handleParentSearch(e.target.value)}
+                        className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm"
+                    />
+                    {/* dropdown */}
+                    {parentOpts.length > 0 && (
+                        <ul className="absolute top-full left-0 right-0 bg-white ring-1 ring-gray-200 shadow-md z-10 max-h-48 overflow-auto">
+                            {parentOpts.map((p) => (
+                                <li
+                                    key={p.id}
+                                    onClick={() => {
+                                        setValue("parentId", p.id);
+                                        setParentOpts([]);
+                                    }}
+                                    className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-sm"
+                                >
+                                    {p.label}
+                                </li>
+                            ))}
+                        </ul>
                     )}
+                    {noParents && <p className="text-sm text-red-400 py-2">No parents found</p>}
+                    <input type="hidden" {...register("parentId")} />
                 </div>
             </div>
 
+            {/* ========== PHOTO ========== */}
+            <span className="text-xs text-gray-500 font-medium">Profile Photo</span>
+            <label
+                htmlFor="img"
+                className="flex items-center gap-2 cursor-pointer w-max text-sm text-blue-600"
+            >
+                <Image src="/upload.png" alt="upload" width={24} height={24} />
+                Upload
+            </label>
+            <input id="img" type="file" {...register("img")} className="hidden" />
+
+            {/* SUBMIT */}
             <button
                 type="submit"
-                className="bg-blue-500 text-white p-2 rounded-md"
                 disabled={submitting}
+                className="bg-blue-600 text-white px-6 py-2 rounded-md w-max"
             >
-                {submitting ? "Submitting..." : type === "create" ? "Create" : "Update"}
+                {submitting ? "Submitting…" : type === "create" ? "Create" : "Update"}
             </button>
         </form>
     );
-};
-
-export default StudentForm;
+}

@@ -1,18 +1,15 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, models } from "mongoose";
 
-const lessonSchema = new mongoose.Schema({
-  _id: Number,
-  name: { type: String, required: true },
-  day: { 
-    type: String, 
-    enum: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'],
-    required: true 
-  },
-  startTime: { type: Date, required: true },
-  endTime: { type: Date, required: true },
-  subjectId: { type: Number, ref: 'Subject', required: true },
-  classId: { type: Number, ref: 'Class', required: true },
-  teacherId: { type: String, ref: 'Teacher', required: true }
+const LessonSchema = new Schema({
+    name: { type: String, required: true },
+    subject: { type: String, required: true },
+    gradeRange: {
+        from: { type: Number, required: true },
+        to: { type: Number, required: true },
+    },
+    assignedTeacher: { type: Schema.Types.ObjectId, ref: "User" },
+    schedule: { type: String },
 });
 
-export default mongoose.models.Lesson || mongoose.model('Lesson', lessonSchema);
+const LessonModel = models?.Lesson || mongoose.model("Lesson", LessonSchema);
+export default LessonModel;
