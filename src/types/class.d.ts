@@ -12,13 +12,14 @@
 declare interface IClass {
     id: string;
     name: string;
-    grade: string; // e.g., "6", "10S", "12Mt"
-    teacherIds?: IUserTeacher[];
-    studentIds?: IUserStudent[];
-    supervisor?: IUserTeacher;
+    grade: string;
+    teacherIds?: string[];
+    studentIds?: string[];
+    supervisor?: string;
     lessons?: {
         lessonId: string;
         teacherId: string;
     }[];
+
     schedule?: string;
 }

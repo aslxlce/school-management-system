@@ -1,532 +1,304 @@
-// // "use client";
+"use client";
 
-// // import { useEffect, useState } from "react";
-// // import { useForm, Controller } from "react-hook-form";
-// // import { zodResolver } from "@hookform/resolvers/zod";
-// // import { z } from "zod";
-// // import { gradeOptions, gradeLessonMap, getGradeLevelFromGrade } from "@/lib/gradeLessons";
-// // import { getEligibleTeachersByGradeAndLesson } from "@/action/client/teacher";
-// // import { getEligibleStudentsByGrade } from "@/action/client/student";
-// // import { createClass } from "@/action/client/class";
+import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { getEligibleTeachersByGradeAndLesson, IUserTeacher } from "@/action/client/teacher";
+import { getEligibleStudentsByGrade, IUserStudent } from "@/action/client/student";
+import { gradeLessonMap, gradeOptions, getGradeLevelFromGrade } from "@/lib/gradeLessons";
+import { createClass } from "@/action/client/class";
 
-// // const schema = z.object({
-// //     name: z.string().min(1),
-// //     grade: z.string(),
-// //     lessons: z.array(z.string()),
-// //     teacherMap: z.record(z.string(), z.string()),
-// //     supervisorId: z.string().optional(),
-// //     studentIds: z.array(z.string()),
-// // });
+interface ClassFormValues {
+    className: string;
+    grade: string;
+    supervisorId?: string;
+    teachersBySubject: Record<string, string>;
+    studentIds: string[];
+}
 
-// // type FormData = z.infer<typeof schema>;
+interface ClassFormProps {
+    type: "create" | "update";
+    data?: Partial<ClassFormValues>;
+    onSuccess?: () => void;
+}
 
-// // export default function ClassForm() {
-// //     const { register, handleSubmit, watch, control, setValue } = useForm<FormData>({
-// //         resolver: zodResolver(schema),
-// //         defaultValues: {
-// //             lessons: [],
-// //             teacherMap: {},
-// //             studentIds: [],
-// //         },
-// //     });
+export default function ClassForm({ type, data, onSuccess }: ClassFormProps) {
+    const {
+        register,
+        handleSubmit,
+        control,
+        watch,
+        setValue,
+        formState: { errors },
+    } = useForm<ClassFormValues>({
+        defaultValues: {
+            className: "",
+            grade: gradeOptions[0],
+            supervisorId: "",
+            teachersBySubject: {},
+            studentIds: [],
+            ...data,
+        },
+    });
 
-// //     const grade = watch("grade");
-// //     const teacherMap = watch("teacherMap");
-// //     const [subjects, setSubjects] = useState<string[]>([]);
-// //     const [teacherOptions, setTeacherOptions] = useState<Record<string, IUserTeacher[]>>({});
-// //     const [studentOptions, setStudentOptions] = useState<IUserStudent[]>([]);
+    const [teachersBySubject, setTeachersBySubject] = useState<Record<string, IUserTeacher[]>>({});
+    const [availableStudents, setAvailableStudents] = useState<IUserStudent[]>([]);
+    const [selectedStudents, setSelectedStudents] = useState<IUserStudent[]>([]);
+    const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-// //     useEffect(() => {
-// //         if (!grade) return;
+    const selectedGrade = watch("grade", gradeOptions[0]);
+    const subjects = gradeLessonMap[selectedGrade] || [];
 
-// //         const subjectList = gradeLessonMap[grade] || [];
-// //         setSubjects(subjectList);
-// //         setValue("lessons", subjectList);
+    const allTeachers: IUserTeacher[] = Array.from(
+        new Map(
+            Object.values(teachersBySubject)
+                .flat()
+                .map((t) => [t.id, t] as [string, IUserTeacher])
+        ).values()
+    );
 
-// //         const fetchTeachers = async () => {
-// //             const level = getGradeLevelFromGrade(grade);
-// //             const teacherMap: Record<string, IUserTeacher[]> = {};
+    const onSubmit = handleSubmit(async (form) => {
+        const teacherIds = Object.values(form.teachersBySubject).filter((tid) => tid !== "");
 
-// //             for (const subject of subjectList) {
-// //                 const teachers = await getEligibleTeachersByGradeAndLesson(level, subject);
-// //                 teacherMap[subject] = teachers;
-// //             }
+        const payload: {
+            name: string;
+            grade: string;
+            supervisor?: string;
+            teacherIds?: string[];
+            studentIds?: string[];
+        } = {
+            name: form.className.trim(),
+            grade: form.grade,
+        };
 
-// //             setTeacherOptions(teacherMap);
-// //         };
+        if (form.supervisorId) payload.supervisor = form.supervisorId;
+        if (teacherIds.length) payload.teacherIds = teacherIds;
+        if (selectedStudents.length) payload.studentIds = selectedStudents.map((s) => s.id);
 
-// //         const fetchStudents = async () => {
-// //             const students = await getEligibleStudentsByGrade(grade);
-// //             setStudentOptions(students);
-// //         };
+        try {
+            await createClass(payload);
+            setStatusMessage("Class created successfully!");
+            onSuccess?.();
+        } catch (err) {
+            console.error("Error creating class:", err);
+            setStatusMessage("Failed to create class. Please try again.");
+        }
+    });
 
-// //         fetchTeachers();
-// //         fetchStudents();
-// //     }, [grade, setValue]);
+    async function onGradeChange(e: React.ChangeEvent<HTMLSelectElement>) {
+        const newGrade = e.target.value;
+        setValue("grade", newGrade, { shouldValidate: true });
 
-// //     const onSubmit = async (data: FormData) => {
-// //         const teachers = subjects
-// //             .map(
-// //                 (subject) => teacherOptions[subject].find((t) => t.id === data.teacherMap[subject])!
-// //             )
-// //             .filter(Boolean);
+        const newSubjects = gradeLessonMap[newGrade] || [];
+        const blankMap: Record<string, string> = {};
+        newSubjects.forEach((subj) => (blankMap[subj] = ""));
+        setValue("teachersBySubject", blankMap);
 
-// //         const classData = {
-// //             name: data.name,
-// //             grade: parseInt(data.grade),
-// //             lessons: subjects,
-// //             teacherIds: teachers,
-// //             supervisor: teachers.find((t) => t.id === data.supervisorId),
-// //             studentIds: studentOptions.filter((s) => data.studentIds.includes(s.id)),
-// //         };
+        const level = getGradeLevelFromGrade(newGrade);
+        const newMap: Record<string, IUserTeacher[]> = {};
+        await Promise.all(
+            newSubjects.map(async (subj) => {
+                try {
+                    const list = await getEligibleTeachersByGradeAndLesson(level, subj);
+                    newMap[subj] = list;
+                } catch {
+                    newMap[subj] = [];
+                }
+            })
+        );
+        setTeachersBySubject(newMap);
 
-// //         await createClass(classData);
-// //     };
+        try {
+            const stuList = await getEligibleStudentsByGrade(newGrade);
+            setAvailableStudents(stuList);
+            setSelectedStudents([]);
+            setValue("studentIds", [], { shouldValidate: true });
+        } catch {
+            setAvailableStudents([]);
+            setSelectedStudents([]);
+            setValue("studentIds", [], { shouldValidate: true });
+        }
+    }
 
-// //     const selectedTeachers = subjects
-// //         .map((subject) => teacherOptions[subject]?.find((t) => t.id === teacherMap[subject]))
-// //         .filter(Boolean) as IUserTeacher[];
+    function onAddStudent(e: React.ChangeEvent<HTMLSelectElement>) {
+        const id = e.target.value;
+        if (!id) return;
+        const stu = availableStudents.find((s) => s.id === id);
+        if (!stu) return;
+        const next = [...selectedStudents, stu];
+        setSelectedStudents(next);
+        setAvailableStudents((prev) => prev.filter((s) => s.id !== id));
+        setValue(
+            "studentIds",
+            next.map((s) => s.id),
+            { shouldValidate: true }
+        );
+        e.target.selectedIndex = 0;
+    }
 
-// //     return (
-// //         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-4">
-// //             <div>
-// //                 <label className="block mb-1">Class Name</label>
-// //                 <input {...register("name")} className="border rounded px-2 py-1 w-full" />
-// //             </div>
+    function onRemoveStudent(id: string) {
+        const stu = selectedStudents.find((s) => s.id === id);
+        if (!stu) return;
+        const next = selectedStudents.filter((s) => s.id !== id);
+        setSelectedStudents(next);
+        setAvailableStudents((prev) => [...prev, stu]);
+        setValue(
+            "studentIds",
+            next.map((s) => s.id),
+            { shouldValidate: true }
+        );
+    }
 
-// //             <div>
-// //                 <label className="block mb-1">Grade</label>
-// //                 <select {...register("grade")} className="border rounded px-2 py-1 w-full">
-// //                     <option value="">Select Grade</option>
-// //                     {gradeOptions.map((g) => (
-// //                         <option key={g} value={g}>
-// //                             {g}
-// //                         </option>
-// //                     ))}
-// //                 </select>
-// //             </div>
+    return (
+        <div className="max-h-[80vh] overflow-y-auto p-4">
+            <form
+                onSubmit={onSubmit}
+                className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-lg space-y-6"
+            >
+                <h2 className="text-2xl font-semibold text-gray-700">
+                    {type === "create" ? "Create Class" : "Update Class"}
+                </h2>
 
-// //             {subjects.length > 0 && (
-// //                 <div className="space-y-2">
-// //                     <h3 className="font-semibold">Assign Teachers to Subjects</h3>
-// //                     {subjects.map((subject) => (
-// //                         <div key={subject}>
-// //                             <label className="block mb-1">{subject}</label>
-// //                             <Controller
-// //                                 name={`teacherMap.${subject}`}
-// //                                 control={control}
-// //                                 render={({ field }) => (
-// //                                     <select {...field} className="border rounded px-2 py-1 w-full">
-// //                                         <option value="">Select Teacher</option>
-// //                                         {teacherOptions[subject]?.map((t) => (
-// //                                             <option key={t.id} value={t.id}>
-// //                                                 {t.name} {t.surname} ({t.subject})
-// //                                             </option>
-// //                                         ))}
-// //                                     </select>
-// //                                 )}
-// //                             />
-// //                         </div>
-// //                     ))}
-// //                 </div>
-// //             )}
+                {statusMessage && (
+                    <div className="text-center text-sm text-green-600">{statusMessage}</div>
+                )}
 
-// //             {selectedTeachers.length > 0 && (
-// //                 <div>
-// //                     <label className="block mb-1">Supervisor</label>
-// //                     <select
-// //                         {...register("supervisorId")}
-// //                         className="border rounded px-2 py-1 w-full"
-// //                     >
-// //                         <option value="">Select Supervisor</option>
-// //                         {selectedTeachers.map((t) => (
-// //                             <option key={t.id} value={t.id}>
-// //                                 {t.name} {t.surname}
-// //                             </option>
-// //                         ))}
-// //                     </select>
-// //                 </div>
-// //             )}
+                {/* Class Name */}
+                <div className="flex flex-col">
+                    <label htmlFor="className" className="mb-2 text-gray-600 font-medium">
+                        Class Name
+                    </label>
+                    <input
+                        id="className"
+                        {...register("className", { required: "Class name is required" })}
+                        className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400"
+                        placeholder="e.g. Class 7A"
+                    />
+                    {errors.className && (
+                        <p className="text-red-500 text-sm mt-1">{errors.className.message}</p>
+                    )}
+                </div>
 
-// //             {studentOptions.length > 0 && (
-// //                 <div>
-// //                     <label className="block mb-1">Assign Students</label>
-// //                     <select
-// //                         multiple
-// //                         {...register("studentIds")}
-// //                         className="border rounded px-2 py-1 w-full h-40"
-// //                     >
-// //                         {studentOptions.map((s) => (
-// //                             <option key={s.id} value={s.id}>
-// //                                 {s.name} {s.surname}
-// //                             </option>
-// //                         ))}
-// //                     </select>
-// //                 </div>
-// //             )}
+                {/* Grade */}
+                <div className="flex flex-col">
+                    <label htmlFor="grade" className="mb-2 text-gray-600 font-medium">
+                        Grade
+                    </label>
+                    <select
+                        id="grade"
+                        {...register("grade", { required: true })}
+                        className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400"
+                        onChange={onGradeChange}
+                    >
+                        {gradeOptions.map((g, i) => (
+                            <option key={i} value={g}>
+                                Grade {g}
+                            </option>
+                        ))}
+                    </select>
+                </div>
 
-// //             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
-// //                 Create Class
-// //             </button>
-// //         </form>
-// //     );
-// // }
+                {/* Supervisor */}
+                <div className="flex flex-col">
+                    <label htmlFor="supervisorId" className="mb-2 text-gray-600 font-medium">
+                        Supervisor (optional)
+                    </label>
+                    <Controller
+                        name="supervisorId"
+                        control={control}
+                        render={({ field }) => (
+                            <select
+                                {...field}
+                                id="supervisorId"
+                                className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400"
+                            >
+                                <option value="">-- No Supervisor --</option>
+                                {allTeachers.map((t, i) => (
+                                    <option key={i} value={t.id}>
+                                        {t.name} {t.surname}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    />
+                </div>
 
-// import { useForm, Controller, useWatch } from "react-hook-form";
-// import { zodResolver } from "@hookform/resolvers/zod";
-// import * as z from "zod";
-// import { gradeLessonMap, gradeOptions, getGradeLevelFromGrade } from "@/lib/gradeLessons";
-// import {
-// } from "@/services/classService";
-//     getEligibleTeachersByGradeAndLesson,
-//     getEligibleStudentsByGrade,
+                {/* Assign Teachers */}
+                {subjects.length > 0 && (
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium text-gray-600">
+                            Assign Teachers by Subject (optional)
+                        </h3>
+                        {subjects.map((subj, i) => {
+                            const opts = teachersBySubject[subj] || [];
+                            return (
+                                <div key={i} className="flex flex-col">
+                                    <label className="mb-2 text-gray-600 font-medium">{subj}</label>
+                                    <Controller
+                                        name={`teachersBySubject.${subj}`}
+                                        control={control}
+                                        render={({ field }) => (
+                                            <select
+                                                {...field}
+                                                className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400"
+                                            >
+                                                <option value="">-- No Teacher Assigned --</option>
+                                                {opts.map((t, j) => (
+                                                    <option key={j} value={t.id}>
+                                                        {t.name} {t.surname}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
 
-// // Zod schema for form validation
-// const classFormSchema = z.object({
-//     name: z.string().min(1, "Class name is required"),
-//     grade: z.string().min(1, "Grade is required"),
-//     subjectsAssignments: z.array(
-//         z.object({
-//             subject: z.string(),
-//             teacherId: z.string().nullable(),
-//         })
-//     ),
-//     supervisorId: z.string().nullable().optional(),
-//     studentIds: z.array(z.string()).optional(),
-// });
+                {/* Select Students */}
+                <div className="flex flex-col">
+                    <label htmlFor="studentSelect" className="mb-2 text-gray-600 font-medium">
+                        Select Student (optional)
+                    </label>
+                    <select
+                        id="studentSelect"
+                        className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400 mb-2"
+                        onChange={onAddStudent}
+                    >
+                        <option value="">-- Choose a Student --</option>
+                        {availableStudents.map((s, i) => (
+                            <option key={i} value={s.id}>
+                                {s.name} {s.surname}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="flex flex-wrap gap-2">
+                        {selectedStudents.map((s, i) => (
+                            <div
+                                key={i}
+                                className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm"
+                            >
+                                {s.name} {s.surname}
+                                <button
+                                    type="button"
+                                    onClick={() => onRemoveStudent(s.id)}
+                                    className="ml-1 text-red-600 hover:text-red-800"
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
 
-// type ClassFormValues = z.infer<typeof classFormSchema>;
-
-// interface ClassFormProps {
-//     onSubmit: (data: Omit<IClass, "id">) => void;
-//     teachers: IUserTeacher[];
-// }
-
-// export default function ClassForm({ onSubmit, teachers }: ClassFormProps) {
-//     const {
-//         control,
-//         register,
-//         handleSubmit,
-//         setValue,
-//         formState: { errors },
-//     } = useForm<ClassFormValues>({
-//         resolver: zodResolver(classFormSchema),
-//         defaultValues: {
-//             subjectsAssignments: [],
-//             supervisorId: null,
-//             studentIds: [],
-//         },
-//     });
-
-//     const currentGrade = useWatch({ control, name: "grade" });
-//     const subjectsAssignments = useWatch({ control, name: "subjectsAssignments" });
-
-//     // Determine available subjects based on selected grade
-//     const subjects = currentGrade ? gradeLessonMap[currentGrade] || [] : [];
-
-//     // Get eligible students for the selected grade
-//     const loadStudents = async () => {
-//         if (!currentGrade) return [];
-//         try {
-//             return await getEligibleStudentsByGrade(currentGrade);
-//         } catch (error) {
-//             console.error("Error loading students", error);
-//             return [];
-//         }
-//     };
-
-//     // Get eligible teachers for a specific subject
-//     const loadTeachers = async (subject: string) => {
-//         if (!currentGrade) return [];
-//         try {
-//             return await getEligibleTeachersByGradeAndLesson(currentGrade, subject);
-//         } catch (error) {
-//             console.error("Error loading teachers", error);
-//             return [];
-//         }
-//     };
-
-//     // Get assigned teachers for supervisor dropdown
-//     const assignedTeachers = subjectsAssignments
-//         .flatMap((assignment) =>
-//             assignment.teacherId ? teachers.find((t) => t.id === assignment.teacherId) : null
-//         )
-//         .filter(Boolean) as IUserTeacher[];
-
-//     // Handler for form submission
-//     const handleFormSubmit = async (data: ClassFormValues) => {
-//         const classData: Omit<IClass, "id"> = {
-//             name: data.name,
-//             grade: data.grade,
-//             teacherIds: subjectsAssignments
-//                 .filter((sa) => sa.teacherId)
-//                 .map((sa) => teachers.find((t) => t.id === sa.teacherId)!),
-//             studentIds: data.studentIds
-//                 ? data.studentIds.map((id) => ({ id } as IUserStudent))
-//                 : [],
-//             supervisor: data.supervisorId
-//                 ? teachers.find((t) => t.id === data.supervisorId)!
-//                 : undefined,
-//             lessons: subjectsAssignments
-//                 .filter((sa) => sa.teacherId)
-//                 .map((sa) => ({
-//                     lessonId: sa.subject,
-//                     teacherId: sa.teacherId!,
-//                 })),
-//         };
-//         onSubmit(classData);
-//     };
-
-//     // Initialize subjects assignments when grade changes
-//     const handleGradeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-//         const grade = e.target.value;
-//         setValue("grade", grade);
-
-//         const newSubjects = gradeLessonMap[grade] || [];
-//         setValue(
-//             "subjectsAssignments",
-//             newSubjects.map((subject) => ({
-//                 subject,
-//                 teacherId: null,
-//             }))
-//         );
-//     };
-
-//     return (
-//         <div className="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-lg">
-//             <h2 className="text-2xl font-bold text-gray-800 mb-6">Create New Class</h2>
-
-//             <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-//                 {/* Class Name Field */}
-//                 <div>
-//                     <label className="block text-sm font-medium text-gray-700 mb-1">
-//                         Class Name
-//                     </label>
-//                     <input
-//                         {...register("name")}
-//                         className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-//                             errors.name ? "border-red-500" : "border-gray-300"
-//                         }`}
-//                         placeholder="e.g., Mathematics Advanced"
-//                     />
-//                     {errors.name && (
-//                         <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-//                     )}
-//                 </div>
-
-//                 {/* Grade Selection */}
-//                 <div>
-//                     <label className="block text-sm font-medium text-gray-700 mb-1">
-//                         Grade Level
-//                     </label>
-//                     <select
-//                         {...register("grade")}
-//                         onChange={handleGradeChange}
-//                         className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-//                             errors.grade ? "border-red-500" : "border-gray-300"
-//                         }`}
-//                     >
-//                         <option value="">Select Grade</option>
-//                         {gradeOptions.map((grade) => (
-//                             <option key={grade} value={grade}>
-//                                 Grade {grade}
-//                             </option>
-//                         ))}
-//                     </select>
-//                     {errors.grade && (
-//                         <p className="mt-1 text-sm text-red-600">{errors.grade.message}</p>
-//                     )}
-//                 </div>
-
-//                 {/* Subject-Teacher Assignments */}
-//                 {currentGrade && (
-//                     <div className="space-y-4">
-//                         <h3 className="text-lg font-semibold text-gray-700">Subject Assignments</h3>
-//                         {subjects.map((subject, index) => (
-//                             <div
-//                                 key={subject}
-//                                 className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg"
-//                             >
-//                                 <div>
-//                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-//                                         Subject
-//                                     </label>
-//                                     <input
-//                                         value={subject}
-//                                         readOnly
-//                                         className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg"
-//                                     />
-//                                 </div>
-
-//                                 <div>
-//                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-//                                         Teacher
-//                                     </label>
-//                                     <Controller
-//                                         name={`subjectsAssignments.${index}.teacherId`}
-//                                         control={control}
-//                                         render={({ field }) => (
-//                                             <Select
-//                                                 options={teachers
-//                                                     .filter(
-//                                                         (t) =>
-//                                                             t.subject === subject &&
-//                                                             t.gradeLevel ===
-//                                                                 getGradeLevelFromGrade(currentGrade)
-//                                                     )
-//                                                     .map((teacher) => ({
-//                                                         value: teacher.id,
-//                                                         label: `${teacher.name} ${teacher.surname}`,
-//                                                     }))}
-//                                                 isClearable
-//                                                 placeholder="Select teacher..."
-//                                                 onChange={(option) =>
-//                                                     field.onChange(option?.value || null)
-//                                                 }
-//                                                 value={
-//                                                     field.value
-//                                                         ? {
-//                                                               value: field.value,
-//                                                               label:
-//                                                                   teachers.find(
-//                                                                       (t) => t.id === field.value
-//                                                                   )?.name +
-//                                                                   " " +
-//                                                                   teachers.find(
-//                                                                       (t) => t.id === field.value
-//                                                                   )?.surname,
-//                                                           }
-//                                                         : null
-//                                                 }
-//                                                 styles={{
-//                                                     control: (base) => ({
-//                                                         ...base,
-//                                                         minHeight: "44px",
-//                                                         borderColor: errors.subjectsAssignments?.[
-//                                                             index
-//                                                         ]?.teacherId
-//                                                             ? "#ef4444"
-//                                                             : "#d1d5db",
-//                                                         "&:hover": {
-//                                                             borderColor: "#3b82f6",
-//                                                         },
-//                                                     }),
-//                                                 }}
-//                                             />
-//                                         )}
-//                                     />
-//                                 </div>
-//                             </div>
-//                         ))}
-//                     </div>
-//                 )}
-
-//                 {/* Supervisor Selection */}
-//                 {currentGrade && assignedTeachers.length > 0 && (
-//                     <div>
-//                         <label className="block text-sm font-medium text-gray-700 mb-1">
-//                             Class Supervisor
-//                         </label>
-//                         <Controller
-//                             name="supervisorId"
-//                             control={control}
-//                             render={({ field }) => (
-//                                 <Select
-//                                     options={assignedTeachers.map((teacher) => ({
-//                                         value: teacher.id,
-//                                         label: `${teacher.name} ${teacher.surname}`,
-//                                     }))}
-//                                     isClearable
-//                                     placeholder="Select supervisor..."
-//                                     onChange={(option) => field.onChange(option?.value || null)}
-//                                     value={
-//                                         field.value
-//                                             ? {
-//                                                   value: field.value,
-//                                                   label:
-//                                                       assignedTeachers.find(
-//                                                           (t) => t.id === field.value
-//                                                       )?.name +
-//                                                       " " +
-//                                                       assignedTeachers.find(
-//                                                           (t) => t.id === field.value
-//                                                       )?.surname,
-//                                               }
-//                                             : null
-//                                     }
-//                                     styles={{
-//                                         control: (base) => ({
-//                                             ...base,
-//                                             minHeight: "44px",
-//                                             borderColor: errors.supervisorId
-//                                                 ? "#ef4444"
-//                                                 : "#d1d5db",
-//                                             "&:hover": {
-//                                                 borderColor: "#3b82f6",
-//                                             },
-//                                         }),
-//                                     }}
-//                                 />
-//                             )}
-//                         />
-//                     </div>
-//                 )}
-
-//                 {/* Student Selection */}
-//                 {currentGrade && (
-//                     <div>
-//                         <label className="block text-sm font-medium text-gray-700 mb-1">
-//                             Students
-//                         </label>
-//                         <Controller
-//                             name="studentIds"
-//                             control={control}
-//                             render={({ field }) => (
-//                                 <Select
-//                                     isMulti
-//                                     loadOptions={loadStudents}
-//                                     defaultOptions
-//                                     getOptionLabel={(student: IUserStudent) =>
-//                                         `${student.name} ${student.surname} (Grade ${student.gradeId})`
-//                                     }
-//                                     getOptionValue={(student: IUserStudent) => student.id}
-//                                     onChange={(options) =>
-//                                         field.onChange(options.map((opt) => opt.id))
-//                                     }
-//                                     value={field.value?.map((id) => ({
-//                                         id,
-//                                         name: "",
-//                                         surname: "",
-//                                         gradeId: "",
-//                                     }))}
-//                                     placeholder="Select students..."
-//                                     classNamePrefix="select"
-//                                     styles={{
-//                                         control: (base) => ({
-//                                             ...base,
-//                                             minHeight: "44px",
-//                                             borderColor: errors.studentIds ? "#ef4444" : "#d1d5db",
-//                                             "&:hover": {
-//                                                 borderColor: "#3b82f6",
-//                                             },
-//                                         }),
-//                                     }}
-//                                 />
-//                             )}
-//                         />
-//                     </div>
-//                 )}
-
-//                 {/* Submit Button */}
-//                 <div className="flex justify-end">
-//                     <button
-//                         type="submit"
-//                         className="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-//                     >
-//                         Create Class
-//                     </button>
-//                 </div>
-//             </form>
-//         </div>
-//     );
-// }
+                <button
+                    type="submit"
+                    className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition"
+                >
+                    Save Class
+                </button>
+            </form>
+        </div>
+    );
+}

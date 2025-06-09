@@ -1,14 +1,38 @@
-// import mongoose, { Schema, model, models } from "mongoose";
+// import { Schema, model, models, Types } from "mongoose";
+
+// const classLessonSubSchema = new Schema(
+//     {
+//         lessonId: { type: Types.ObjectId, ref: "Lesson", required: true },
+//         teacherId: { type: Types.ObjectId, ref: "User", required: true },
+//     },
+//     { _id: false }
+// );
+
+// const scheduleEntrySchema = new Schema(
+//     {
+//         day: {
+//             type: String,
+//             enum: ["sunday", "monday", "tuesday", "wednesday", "thursday"],
+//             required: true,
+//         },
+//         startTime: { type: String, required: true },
+//         endTime: { type: String, required: true },
+//         subject: { type: String, required: true },
+//         classId: { type: Types.ObjectId, ref: "Class", required: true },
+//         teacherId: { type: Types.ObjectId, ref: "User" },
+//     },
+//     { _id: false }
+// );
 
 // const classSchema = new Schema(
 //     {
 //         name: { type: String, required: true },
-//         grade: { type: Number, required: true },
-//         teacherIds: [{ type: mongoose.Types.ObjectId, ref: "User" }],
-//         studentIds: [{ type: mongoose.Types.ObjectId, ref: "User" }],
-//         supervisor: { type: mongoose.Types.ObjectId, ref: "User" },
-//         lessons: [{ type: String }],
-//         schedule: { type: String },
+//         grade: { type: String, required: true },
+//         teacherIds: [{ type: Types.ObjectId, ref: "User" }],
+//         studentIds: [{ type: Types.ObjectId, ref: "User" }],
+//         supervisor: { type: Types.ObjectId, ref: "User" },
+//         lessons: { type: [classLessonSubSchema], default: [] },
+//         schedule: { type: [scheduleEntrySchema], default: [] },
 //     },
 //     { timestamps: true }
 // );
@@ -16,18 +40,33 @@
 // const ClassModel = models.Class || model("Class", classSchema);
 // export default ClassModel;
 
+// models/Class.ts
+
 import { Schema, model, models, Types } from "mongoose";
 
-/** One school class – e.g. “7-A”, “11M-2”, … */
+// 1) Define a schema for one schedule entry:
+const scheduleEntrySchema = new Schema(
+    {
+        day: { type: String, required: true }, // e.g. "monday"
+        startTime: { type: String, required: true }, // e.g. "08:00"
+        endTime: { type: String, required: true }, // e.g. "09:00"
+        subject: { type: String, required: true },
+        classId: { type: Types.ObjectId, ref: "Class", required: true },
+        teacherId: { type: Types.ObjectId, ref: "User" },
+    },
+    { _id: false }
+);
+
 const classSchema = new Schema(
     {
-        name: { type: String, required: true }, // “7-A”
-        grade: { type: String, required: true }, // “7”, “11M”, … 🔄 changed
+        name: { type: String, required: true },
+        grade: { type: String, required: true },
         teacherIds: [{ type: Types.ObjectId, ref: "User" }],
         studentIds: [{ type: Types.ObjectId, ref: "User" }],
         supervisor: { type: Types.ObjectId, ref: "User" },
-        lessons: [{ type: String }],
-        schedule: { type: String }, // (will move to its own model later)
+        lessons: [{ lessonId: String, teacherId: String }],
+        // 2) Change this from a String to an array of scheduleEntrySchema:
+        schedule: { type: [scheduleEntrySchema], default: [] },
     },
     { timestamps: true }
 );
