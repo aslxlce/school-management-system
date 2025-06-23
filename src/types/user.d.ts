@@ -1,56 +1,3 @@
-// declare interface IUserBase {
-//     id: string;
-//     username: string;
-//     role: "student" | "admin" | "teacher" | "parent";
-// }
-
-// declare interface IUserTeacher {
-//     id: string;
-//     username: string;
-//     name: string;
-//     surname: string;
-//     email: string;
-//     phone: string;
-//     address: string;
-//     img?: string;
-//     sex: "male" | "female";
-//     subject: string;
-//     birthday: Date;
-//     gradeLevel: "primary" | "middle" | "high";
-// }
-
-// declare interface IUserStudent {
-//     id: string;
-//     name: string;
-//     surname: string;
-//     email?: string;
-//     img: string;
-//     phone?: string;
-//     gradeId: string; // change from number to string to allow "10S", "12Mt", etc.
-//     classId?: string;
-//     adress: string;
-//     parentId: string;
-//     birthday: string;
-//     sex: "male" | "female";
-// }
-
-/* --------------------------------------------------------------------------
- * Global type declarations for the User domain
- * --------------------------------------------------------------------------
- * 1.  Grade literals are synchronised with `gradeLessons.ts` (manual copy‑paste).
- * 2.  A reusable `IScheduleEntry` is introduced and embedded in Teacher &
- *     Student interfaces.
- * 3.  All previous `any` types removed.  Address typo fixed.
- * --------------------------------------------------------------------------*/
-
-// -----------------------------------------------------------------------------
-// Shared literals & helpers
-// -----------------------------------------------------------------------------
-
-/* -------------------------------------------------
- * Shared primitives
- * -------------------------------------------------*/
-
 export type Sex = "male" | "female";
 
 /** All grades we support – keep in sync with `gradeLessons.ts` */
@@ -72,6 +19,16 @@ export type Grade =
     | "12M"
     | "12Mt";
 
+export type DayOfWeek = "monday" | "tuesday" | "wednesday" | "thursday" | "friday";
+
+export interface IScheduleEntry {
+    day: DayOfWeek;
+    startTime: string;
+    endTime: string;
+    subject: string;
+    classId: string;
+    teacherId?: string;
+}
 /* -------------------------------------------------
  * Base user & discriminated sub-types
  * -------------------------------------------------*/

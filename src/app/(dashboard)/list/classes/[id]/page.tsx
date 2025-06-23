@@ -156,7 +156,12 @@ export default async function ClassDetailPage({ params }: PageProps) {
                 )}
             </section>
 
-            <ClassScheduleSection classId={cls.id} initialSchedule={schedule} subjects={subjects} />
+            <ClassScheduleSection
+                classId={cls.id}
+                initialSchedule={schedule}
+                subjects={subjects}
+                teachers={cls.teacherIds}
+            />
         </div>
     );
 }

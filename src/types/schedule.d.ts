@@ -9,7 +9,7 @@
 //     teacherId: string;
 // }
 
-export type DayOfWeek = "sunday" | "monday" | "tuesday" | "wednesday" | "thursday";
+export type DayOfWeek = "monday" | "tuesday" | "wednesday" | "thursday" | "friday";
 
 declare interface IScheduleEntry {
     day: DayOfWeek;
@@ -17,5 +17,5 @@ declare interface IScheduleEntry {
     endTime: string;
     subject: string;
     classId: string;
-    teacherId?: string;
+    teacherId: string;
 }

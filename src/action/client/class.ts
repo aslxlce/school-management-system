@@ -22,3 +22,28 @@ export const fetchClassesByGrade = async (grade: string) => {
     });
     return data;
 };
+
+export interface IScheduleEntry {
+    day: "monday" | "tuesday" | "wednesday" | "thursday" | "friday";
+    startTime: string;
+    endTime: string;
+    subject: string;
+    classId: string;
+    teacherId: string;
+}
+
+export interface IClassWithSchedule {
+    id: string;
+    name: string;
+    grade: string;
+    schedule: IScheduleEntry[];
+}
+
+/** Fetch a class (with its schedule) by ID */
+export async function fetchClassByIdClient(id: string): Promise<IClassWithSchedule> {
+    const res = await axiosConfig.get<IClassWithSchedule>(`/classes/${id}`);
+    if (res.status < 200 || res.status >= 300) {
+        throw new Error(`Failed to load class ${id}: ${res.statusText}`);
+    }
+    return res.data;
+}

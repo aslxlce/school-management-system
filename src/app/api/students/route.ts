@@ -1,77 +1,7 @@
-// import dbConnect from "@/lib/dbConnection";
-// import { StudentModel } from "@/models/User";
-// import { NextRequest, NextResponse } from "next/server";
-
 import dbConnect from "@/lib/dbConnection";
 import { StudentModel } from "@/models/User";
 import { NextResponse } from "next/server";
 import { MongoServerError } from "mongodb";
-
-// export async function POST(req: NextRequest) {
-//     try {
-//         await dbConnect();
-
-//         /* --------------------------------------------------------
-//          * 1) Parse body
-//          * -------------------------------------------------------- */
-//         let data: Record<string, unknown> = {};
-//         const contentType = req.headers.get("content-type") ?? "";
-
-//         if (contentType.includes("multipart/form-data")) {
-//             // ---- multipart (FormData) ----
-//             const form = await req.formData();
-
-//             for (const [key, value] of form.entries()) {
-//                 if (key === "img" && value instanceof File && value.size) {
-//                     /* ---------------------------------------------
-//                      * TODO  upload the file somewhere and store
-//                      *       the resulting URL in `data.img`
-//                      * --------------------------------------------- */
-//                     // const url = await uploadToS3(value); // example
-//                     // data.img = url;
-//                 } else {
-//                     data[key] = value;
-//                 }
-//             }
-//         } else {
-//             // ---- pure JSON ----
-//             data = await req.json();
-//         }
-
-//         /* --------------------------------------------------------
-//          * 2) Normalise / cast
-//          * -------------------------------------------------------- */
-//         if (typeof data.birthday === "string") {
-//             data.birthday = new Date(data.birthday);
-//         }
-
-//         // grade comes from the form as "7" | "11M" … – store it under
-//         // gradeId if you kept that field name in the model
-//         if ("gradeId" in data && !("grade" in data)) {
-//             data.grade = data.gradeId as string;
-//             delete data.gradeId;
-//         }
-
-//         /* --------------------------------------------------------
-//          * 3) Create student (parentId / classId are optional)
-//          * -------------------------------------------------------- */
-//         const newStudent = await StudentModel.create(data);
-
-//         return NextResponse.json(newStudent, { status: 201 });
-//     } catch (err) {
-//         console.error("[API /students] POST error", err);
-//         return NextResponse.json(
-//             { message: "Failed to create student", error: String(err) },
-//             { status: 500 }
-//         );
-//     }
-// }
-
-// src/app/api/students/route.ts
-
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
 
 export async function GET(req: Request) {
     try {

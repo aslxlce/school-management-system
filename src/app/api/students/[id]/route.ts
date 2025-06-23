@@ -32,3 +32,31 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         return NextResponse.json({ error: "Failed to update student" }, { status: 500 });
     }
 }
+
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+    if (!params.id) {
+        return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    }
+    await dbConnect();
+    const s = await StudentModel.findById(params.id).lean();
+    if (!s) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Return exactly the fields your client expects
+    return NextResponse.json({
+        id: s._id.toString(),
+        username: s.username,
+        name: s.name,
+        surname: s.surname,
+        email: s.email,
+        phone: s.phone,
+        address: s.address,
+        img: s.img,
+        sex: s.sex,
+        grade: s.grade,
+        birthday: s.birthday.toISOString(),
+        role: "student",
+        schedule: s.schedule, // pass along the embedded schedule array
+    });
+}

@@ -5,7 +5,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 /* ------------------------------------------------------------------ */
 
 /** Same literal union used in `schedule.d.ts` */
-export type DayOfWeek = "sunday" | "monday" | "tuesday" | "wednesday" | "thursday";
+export type DayOfWeek = "monday" | "tuesday" | "wednesday" | "thursday" | "friday";
 
 /**
  * One lesson-slot in a class timetable
@@ -28,7 +28,7 @@ const scheduleSchema = new Schema<IScheduleEntry>(
     {
         day: {
             type: String,
-            enum: ["sunday", "monday", "tuesday", "wednesday", "thursday"],
+            enum: ["monday", "tuesday", "wednesday", "thursday", "friday"],
             required: true,
         },
         startTime: { type: String, required: true },

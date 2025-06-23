@@ -1,3 +1,5 @@
+// lib/auth.ts
+
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import dbConnect from "./dbConnection";

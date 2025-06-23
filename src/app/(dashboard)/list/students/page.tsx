@@ -118,14 +118,13 @@
 
 // export default StudentListPage;
 
-export const dynamic = "force-dynamic";
-
 import Image from "next/image";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import { fetchStudents } from "@/action/server/student";
 import FormModal from "@/components/FormModal";
 import { getSession } from "@/lib/auth";
+import { IUserStudent } from "@/types/user";
 
 const columns = [
     { header: "Info", accessor: "info" },
@@ -178,13 +177,13 @@ const StudentsPage = async ({ searchParams }: PageProps) => {
                     <p className="text-xs text-gray-500">{student.email}</p>
                 </div>
             </td>
-            <td className="hidden md:table-cell">{student.gradeId}</td>
+            <td className="hidden md:table-cell">{student.grade}</td>
             <td className="hidden lg:table-cell">{student.phone}</td>
             <td className="hidden lg:table-cell capitalize">{student.sex}</td>
             <td className="hidden lg:table-cell">
                 {new Date(student.birthday).toLocaleDateString()}
             </td>
-            <td className="hidden lg:table-cell">{student.adress}</td>
+            <td className="hidden lg:table-cell">{student.address}</td>
             <td>
                 <div className="flex items-center gap-2">
                     <a href={`/list/students/${student.id}`}>

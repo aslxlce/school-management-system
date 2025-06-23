@@ -2,7 +2,7 @@ import dbConnect from "@/lib/dbConnection";
 import ClassModel from "@/models/Class";
 import { Types, Document } from "mongoose";
 import { IUserTeacher, IUserStudent } from "@/types/user";
-import { Grade, GradeLevel } from "@/models/User";
+import { Grade, GradeLevel, IScheduleEntry } from "@/models/User";
 
 interface RawTeacher {
     _id: Types.ObjectId;

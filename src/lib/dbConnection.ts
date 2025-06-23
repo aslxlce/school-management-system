@@ -14,14 +14,14 @@ if (!cached) {
 }
 
 async function dbConnect() {
-    const DB_URI = process.env.MONGODB_DB_URI_WITHOUT_CREDENTIALS;
-    if (!DB_URI)
-        throw new Error("Please define the MONGODB_URI environment variable inside .env.local");
-
     if (cached.conn) {
         return cached.conn;
     }
     if (!cached.promise) {
+        const DB_URI = process.env.MONGODB_DB_URI_WITHOUT_CREDENTIALS;
+        console.log("DB_URI", DB_URI);
+        if (!DB_URI)
+            throw new Error("Please define the MONGODB_URI environment variable inside .env.local");
         cached.promise = mongoose.connect(DB_URI, {
             auth: {
                 username: process.env.MONGODB_DB_USERNAME,

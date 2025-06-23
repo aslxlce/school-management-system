@@ -6,15 +6,35 @@
 // import { Calendar, momentLocalizer, Views, View, Event as CalEvent } from "react-big-calendar";
 // import "react-big-calendar/lib/css/react-big-calendar.css";
 // import dynamic from "next/dynamic";
-// import { IScheduleEntry } from "@/types/schedule";
+
+// // Local types
+// type DayOfWeek = "monday" | "tuesday" | "wednesday" | "thursday" | "friday";
+
+// interface IScheduleEntry {
+//     day: DayOfWeek;
+//     startTime: string;
+//     endTime: string;
+//     subject: string;
+//     classId: string;
+//     teacherId?: string;
+// }
+
+// // New prop interface, including `teachers`
+// export interface ClassScheduleSectionProps {
+//     classId: string;
+//     initialSchedule: IScheduleEntry[];
+//     subjects: string[];
+//     teachers: { id: string; subject: string }[];
+// }
 
 // const localizer = momentLocalizer(moment);
-// const ScheduleForm = dynamic(() => import("@/components/forms/ScheduleForm"), {
+// const ScheduleForm = dynamic(() => import("./forms/ScheduleForm"), {
 //     ssr: false,
 //     loading: () => <p>Loading…</p>,
 // });
 
-// const dayToIndex: Record<"monday" | "tuesday" | "wednesday" | "thursday" | "friday", number> = {
+// // Map Monday→0 … Friday→4
+// const dayToIndex: Record<DayOfWeek, number> = {
 //     monday: 0,
 //     tuesday: 1,
 //     wednesday: 2,
@@ -22,30 +42,38 @@
 //     friday: 4,
 // };
 
-// interface Props {
-//     classId: string;
-//     initialSchedule: IScheduleEntry[];
-//     subjects: string[];
-// }
-
-// export default function ClassScheduleSection({ classId, initialSchedule, subjects }: Props) {
-//     const [schedule, setSchedule] = useState<IScheduleEntry[]>(initialSchedule ?? []);
+// export default function ClassScheduleSection({
+//     classId,
+//     initialSchedule,
+//     subjects,
+//     teachers, // <-- now declared
+// }: ClassScheduleSectionProps) {
+//     const [schedule, setSchedule] = useState<IScheduleEntry[]>(initialSchedule);
 //     const [view, setView] = useState<View>(Views.WORK_WEEK);
 //     const [showForm, setShowForm] = useState(false);
 //     const router = useRouter();
 
 //     const events: CalEvent[] = useMemo(() => {
-//         // Monday as week start:
-//         const weekStart = moment().startOf("isoWeek");
+//         const now = new Date();
+//         const dow = now.getDay();
+//         const offset = (dow + 6) % 7; // Monday=0
+//         const monday = new Date(now);
+//         monday.setDate(now.getDate() - offset);
+//         monday.setHours(0, 0, 0, 0);
+
 //         return schedule.map((e) => {
-//             const base = weekStart.clone().add(dayToIndex[e.day], "days");
+//             const idx = dayToIndex[e.day];
+//             const base = new Date(monday);
+//             base.setDate(monday.getDate() + idx);
+
 //             const [sh, sm] = e.startTime.split(":").map(Number);
 //             const [eh, em] = e.endTime.split(":").map(Number);
-//             return {
-//                 title: e.subject,
-//                 start: base.clone().hour(sh).minute(sm).toDate(),
-//                 end: base.clone().hour(eh).minute(em).toDate(),
-//             };
+//             const start = new Date(base);
+//             start.setHours(sh, sm, 0, 0);
+//             const end = new Date(base);
+//             end.setHours(eh, em, 0, 0);
+
+//             return { title: e.subject, start, end };
 //         });
 //     }, [schedule]);
 
@@ -57,7 +85,7 @@
 //         });
 //         if (!res.ok) throw new Error("Failed to save");
 //         const body = await res.json();
-//         setSchedule(body.schedule ?? []);
+//         setSchedule(body.schedule);
 //         setShowForm(false);
 //         router.refresh();
 //     }
@@ -93,6 +121,7 @@
 //                         <ScheduleForm
 //                             classId={classId}
 //                             subjects={subjects}
+//                             teachers={teachers}
 //                             initialSchedule={schedule}
 //                             onClose={() => setShowForm(false)}
 //                             onSave={handleSave}
@@ -114,16 +143,22 @@ import { Calendar, momentLocalizer, Views, View, Event as CalEvent } from "react
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import dynamic from "next/dynamic";
 
-// Locally re-declare your schedule types:
+// Local types
 type DayOfWeek = "monday" | "tuesday" | "wednesday" | "thursday" | "friday";
-
 interface IScheduleEntry {
     day: DayOfWeek;
-    startTime: string;
-    endTime: string;
+    startTime: string; // e.g. "08 AM"
+    endTime: string; // e.g. "09 PM"
     subject: string;
     classId: string;
     teacherId?: string;
+}
+
+export interface ClassScheduleSectionProps {
+    classId: string;
+    initialSchedule: IScheduleEntry[];
+    subjects: string[];
+    teachers: { id: string; subject: string }[];
 }
 
 const localizer = momentLocalizer(moment);
@@ -132,7 +167,6 @@ const ScheduleForm = dynamic(() => import("./forms/ScheduleForm"), {
     loading: () => <p>Loading…</p>,
 });
 
-// Map Monday→0 … Friday→4
 const dayToIndex: Record<DayOfWeek, number> = {
     monday: 0,
     tuesday: 1,
@@ -141,29 +175,48 @@ const dayToIndex: Record<DayOfWeek, number> = {
     friday: 4,
 };
 
-interface Props {
-    classId: string;
-    initialSchedule: IScheduleEntry[];
-    subjects: string[];
-}
-
-export default function ClassScheduleSection({ classId, initialSchedule, subjects }: Props) {
+export default function ClassScheduleSection({
+    classId,
+    initialSchedule,
+    subjects,
+    teachers,
+}: ClassScheduleSectionProps) {
     const [schedule, setSchedule] = useState<IScheduleEntry[]>(initialSchedule);
     const [view, setView] = useState<View>(Views.WORK_WEEK);
     const [showForm, setShowForm] = useState(false);
     const router = useRouter();
 
+    // Helper to parse "HH AM/PM" into {hour,minute}
+    function parseHourAMPM(str: string) {
+        const [hourStr, period] = str.split(" ");
+        let h = parseInt(hourStr, 10);
+        if (period === "PM" && h < 12) h += 12;
+        if (period === "AM" && h === 12) h = 0;
+        return { h, m: 0 };
+    }
+
     const events: CalEvent[] = useMemo(() => {
-        const weekStart = moment().startOf("isoWeek"); // Monday
+        const now = new Date();
+        const dow = now.getDay(); // Sunday=0
+        const offset = (dow + 6) % 7; // Monday=0
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - offset);
+        monday.setHours(0, 0, 0, 0);
+
         return schedule.map((e) => {
-            const base = weekStart.clone().add(dayToIndex[e.day], "days");
-            const [sh, sm] = e.startTime.split(":").map(Number);
-            const [eh, em] = e.endTime.split(":").map(Number);
-            return {
-                title: e.subject,
-                start: base.clone().hour(sh).minute(sm).toDate(),
-                end: base.clone().hour(eh).minute(em).toDate(),
-            };
+            const idx = dayToIndex[e.day];
+            const base = new Date(monday);
+            base.setDate(monday.getDate() + idx);
+
+            const { h: sh, m: sm } = parseHourAMPM(e.startTime);
+            const { h: eh, m: em } = parseHourAMPM(e.endTime);
+
+            const start = new Date(base);
+            start.setHours(sh, sm, 0, 0);
+            const end = new Date(base);
+            end.setHours(eh, em, 0, 0);
+
+            return { title: e.subject, start, end };
         });
     }, [schedule]);
 
@@ -173,7 +226,11 @@ export default function ClassScheduleSection({ classId, initialSchedule, subject
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ schedule: newSchedule }),
         });
-        if (!res.ok) throw new Error("Failed to save");
+        if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            console.error("Server rejected schedule:", errBody);
+            throw new Error("Failed to save: " + JSON.stringify(errBody));
+        }
         const body = await res.json();
         setSchedule(body.schedule);
         setShowForm(false);
@@ -211,6 +268,7 @@ export default function ClassScheduleSection({ classId, initialSchedule, subject
                         <ScheduleForm
                             classId={classId}
                             subjects={subjects}
+                            teachers={teachers}
                             initialSchedule={schedule}
                             onClose={() => setShowForm(false)}
                             onSave={handleSave}
