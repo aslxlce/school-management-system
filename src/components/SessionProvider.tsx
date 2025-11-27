@@ -24,6 +24,7 @@
 
 import { SessionProvider as Provider } from "next-auth/react";
 import type { Session } from "next-auth";
+import { IUserBase } from "@/types/user";
 
 interface Props {
     children: React.ReactNode;

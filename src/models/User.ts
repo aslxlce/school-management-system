@@ -45,16 +45,6 @@ export const gradeValues: Grade[] = [
 ];
 export type GradeLevel = "primary" | "middle" | "high";
 
-/** Matches your front‐end interface exactly */
-// export interface IScheduleEntry {
-//     day: "monday" | "tuesday" | "wednesday" | "thursday" | "friday";
-//     startTime: string;
-//     endTime: string;
-//     subject: string;
-//     classId: string;
-//     teacherId?: string;
-// }
-
 /** --------------------------------------------------------------------------
  * 2. Base user interface & schema
  * -------------------------------------------------------------------------- */
@@ -120,8 +110,8 @@ const parentSchema = new Schema<IParent>(
     {
         name: { type: String, required: true },
         surname: { type: String, required: true },
-        email: { type: String, unique: true, sparse: true },
-        phone: { type: String, required: true, unique: true },
+        email: { type: String, sparse: true },
+        phone: { type: String, required: true },
         address: { type: String, required: true },
         childrenIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
     },
@@ -179,7 +169,6 @@ const studentSchema = new Schema<IStudent>(
         img: { type: String },
         phone: { type: String, unique: true, sparse: true },
         grade: { type: String, enum: gradeValues, required: true },
-        // classId: { type: Schema.Types.ObjectId, ref: "Class" },
         classId: { type: String, default: "" },
         address: { type: String, required: true },
         parentId: { type: Schema.Types.ObjectId, ref: "parent" },

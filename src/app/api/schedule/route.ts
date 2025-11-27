@@ -11,7 +11,6 @@ export async function GET(request: NextRequest) {
 
         const filter: FilterQuery<IScheduleEntry> = {};
         if (teacherId) {
-            // Mongoose will cast string to ObjectId automatically, but you can be explicit:
             filter.teacherId = new Types.ObjectId(teacherId);
         }
         if (classId) {
@@ -19,7 +18,6 @@ export async function GET(request: NextRequest) {
         }
 
         const entries = await ScheduleModel.find(filter).lean();
-        // entries is Array<{ day, startTime, endTime, subject, classId, teacherId, ...timestamps }>
 
         return NextResponse.json(entries, { status: 200 });
     } catch (err) {

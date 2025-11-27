@@ -11,13 +11,13 @@ export interface IParentWithChildren {
     email?: string;
     phone?: string;
     address?: string;
-    children: string[]; // array of “Child Name Surname”
+    childrenIds: string[];
+    children: string[];
 }
 
 /**
- * Fetches a paginated list of parents, each with their children’s full names.
- * @param page 1-based page number
- * @param limit number of parents per page
+ * @param page
+ * @param limit
  * @returns { data: IParentWithChildren[]; totalPages: number }
  */
 export const fetchParents = async (
@@ -28,18 +28,15 @@ export const fetchParents = async (
 
     const skip = (page - 1) * limit;
 
-    // 1) Fetch parents for this page and the total count
     const [parentsRaw, count] = await Promise.all([
         ParentModel.find().skip(skip).limit(limit).lean(),
         ParentModel.countDocuments(),
     ]);
 
-    // 2) Collect all childrenIds across these parents
-    const allChildIds = parentsRaw.flatMap((p) =>
+    const allChildIds: string[] = parentsRaw.flatMap((p) =>
         Array.isArray(p.childrenIds) ? p.childrenIds.map((oid) => String(oid)) : []
     );
 
-    // 3) Fetch student documents for those IDs to get name + surname
     const studentDocs =
         allChildIds.length > 0
             ? await StudentModel.find({ _id: { $in: allChildIds } })
@@ -47,13 +44,11 @@ export const fetchParents = async (
                   .lean()
             : [];
 
-    // 4) Build a lookup map: studentId -> "Name Surname"
     const studentMap = studentDocs.reduce<Record<string, string>>((acc, s) => {
         acc[String(s._id)] = `${s.name} ${s.surname}`;
         return acc;
     }, {});
 
-    // 5) Map each parent to IParentWithChildren, replacing childrenIds with names
     const data: IParentWithChildren[] = parentsRaw.map((p) => {
         const rawIds: string[] = Array.isArray(p.childrenIds)
             ? p.childrenIds.map((oid) => String(oid))
@@ -71,6 +66,7 @@ export const fetchParents = async (
             email: p.email,
             phone: p.phone,
             address: p.address,
+            childrenIds: rawIds,
             children: childrenNames,
         };
     });

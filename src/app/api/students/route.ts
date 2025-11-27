@@ -2,34 +2,33 @@ import dbConnect from "@/lib/dbConnection";
 import { StudentModel } from "@/models/User";
 import { NextResponse } from "next/server";
 import { MongoServerError } from "mongodb";
+import fs from "fs/promises";
+import path from "path";
+import ClassModel from "@/models/Class";
+import { IScheduleEntry } from "@/types/user";
 
 export async function GET(req: Request) {
     try {
         const url = new URL(req.url);
         const searchQuery = url.searchParams.get("search")?.trim() ?? "";
 
-        // If no search parameter was provided, return an empty array:
         if (searchQuery === "") {
             return NextResponse.json([], { status: 200 });
         }
 
         await dbConnect();
 
-        // Build a case-insensitive regex for partial matching:
         const regex = new RegExp(searchQuery, "i");
 
-        // Query for students whose name, surname, or username matches:
         const foundStudents = await StudentModel.find(
             {
                 $or: [{ name: regex }, { surname: regex }, { username: regex }],
             },
-            // Only select the fields we need:
             { name: 1, surname: 1 }
         )
-            .limit(20) // limit to 20 results
+            .limit(20)
             .lean();
 
-        // Map the returned documents into a simple JSON payload:
         const payload = foundStudents.map((doc) => ({
             id: doc._id.toString(),
             name: doc.name,
@@ -52,23 +51,88 @@ export async function GET(req: Request) {
     }
 }
 
-export async function POST(req: Request) {
+export const config = {
+    api: { bodyParser: false },
+};
+
+interface ClassWithSchedule {
+    schedule: IScheduleEntry[];
+}
+
+export async function POST(request: Request) {
     try {
+        const form = await request.formData();
+        const get = (key: string) => (form.get(key) as string | null) ?? "";
+
+        const username = get("username");
+        const password = get("password");
+        const name = get("name");
+        const surname = get("surname");
+        const email = get("email") || undefined;
+        const phone = get("phone") || undefined;
+        const address = get("address");
+        const sex = get("sex") as "male" | "female";
+        const birthday = new Date(get("birthday"));
+        const grade = get("grade");
+        const parentId = get("parentId") || undefined;
+        const classId = get("classId") || undefined;
+
+        let imgUrl: string | undefined;
+        const imgFile = form.get("img") as File | null;
+        if (imgFile && imgFile.size > 0) {
+            const buffer = Buffer.from(await imgFile.arrayBuffer());
+            const uploadDir = path.join(process.cwd(), "public", "uploads");
+            await fs.mkdir(uploadDir, { recursive: true });
+            const safeName = imgFile.name.replace(/\s+/g, "_");
+            const filename = `${Date.now()}_${safeName}`;
+            await fs.writeFile(path.join(uploadDir, filename), buffer);
+            imgUrl = `/uploads/${filename}`;
+        }
+
         await dbConnect();
 
-        // Parse the JSON body:
-        const body: Record<string, unknown> = await req.json();
+        const newStudent = await StudentModel.create({
+            username,
+            password,
+            name,
+            surname,
+            email,
+            phone,
+            address,
+            sex,
+            birthday,
+            grade,
+            parentId,
+            classId,
+            ...(imgUrl ? { img: imgUrl } : {}),
+            schedule: [],
+            isActive: true,
+        });
 
-        // Create a new student document:
-        const newStudent = await StudentModel.create(body);
+        if (classId) {
+            await ClassModel.findByIdAndUpdate(
+                classId,
+                { $addToSet: { studentIds: newStudent._id } },
+                { new: true }
+            );
+
+            const cls = await ClassModel.findById(classId).lean<ClassWithSchedule>();
+            if (cls?.schedule?.length) {
+                await StudentModel.findByIdAndUpdate(newStudent._id, {
+                    schedule: cls.schedule,
+                });
+            }
+        }
 
         return NextResponse.json(newStudent, { status: 201 });
-    } catch (error: unknown) {
-        console.error("[API /students] POST error", error);
-
+    } catch (err: unknown) {
+        console.error("[API /students POST] Error:", err);
         const message =
-            error instanceof MongoServerError ? error.message : "Failed to create student.";
-
-        return NextResponse.json({ message, error: String(error) }, { status: 500 });
+            err instanceof MongoServerError
+                ? err.message
+                : err instanceof Error
+                ? err.message
+                : "Unknown server error";
+        return NextResponse.json({ message }, { status: 500 });
     }
 }

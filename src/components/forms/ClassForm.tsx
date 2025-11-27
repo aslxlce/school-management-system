@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { getEligibleTeachersByGradeAndLesson, IUserTeacher } from "@/action/client/teacher";
-import { getEligibleStudentsByGrade, IUserStudent } from "@/action/client/student";
+import { getEligibleTeachersByGradeAndLesson } from "@/action/client/teacher";
+import { getEligibleStudentsByGrade } from "@/action/client/student";
 import { gradeLessonMap, gradeOptions, getGradeLevelFromGrade } from "@/lib/gradeLessons";
-import { createClass } from "@/action/client/class";
+import { createClass, updateClass, ClassPayload } from "@/action/client/class";
+import { IUserStudent, IUserTeacher } from "@/types/user";
 
 interface ClassFormValues {
     className: string;
@@ -17,7 +18,7 @@ interface ClassFormValues {
 
 interface ClassFormProps {
     type: "create" | "update";
-    data?: Partial<ClassFormValues>;
+    data?: Partial<ClassFormValues> & { id?: string };
     onSuccess?: () => void;
 }
 
@@ -45,8 +46,10 @@ export default function ClassForm({ type, data, onSuccess }: ClassFormProps) {
     const [selectedStudents, setSelectedStudents] = useState<IUserStudent[]>([]);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-    const selectedGrade = watch("grade", gradeOptions[0]);
+    const selectedGrade = watch("grade", data?.grade ?? gradeOptions[0]);
     const subjects = gradeLessonMap[selectedGrade] || [];
+
+    const classId = data?.id ?? "";
 
     const allTeachers: IUserTeacher[] = Array.from(
         new Map(
@@ -56,31 +59,105 @@ export default function ClassForm({ type, data, onSuccess }: ClassFormProps) {
         ).values()
     );
 
-    const onSubmit = handleSubmit(async (form) => {
-        const teacherIds = Object.values(form.teachersBySubject).filter((tid) => tid !== "");
+    const loadDataForGrade = async (
+        grade: string,
+        initialStudentIds: string[] = [],
+        initialTeachersBySubject?: Record<string, string>
+    ): Promise<void> => {
+        console.log("[ClassForm] loadDataForGrade:", grade);
 
-        const payload: {
-            name: string;
-            grade: string;
-            supervisor?: string;
-            teacherIds?: string[];
-            studentIds?: string[];
-        } = {
-            name: form.className.trim(),
-            grade: form.grade,
-        };
+        const newSubjects = gradeLessonMap[grade] || [];
 
-        if (form.supervisorId) payload.supervisor = form.supervisorId;
-        if (teacherIds.length) payload.teacherIds = teacherIds;
-        if (selectedStudents.length) payload.studentIds = selectedStudents.map((s) => s.id);
+        const blankMap: Record<string, string> = {};
+        newSubjects.forEach((subj) => {
+            const initialTeacherId =
+                initialTeachersBySubject && initialTeachersBySubject[subj]
+                    ? initialTeachersBySubject[subj]
+                    : "";
+            blankMap[subj] = initialTeacherId;
+        });
+        setValue("teachersBySubject", blankMap);
+
+        const level = getGradeLevelFromGrade(grade);
+        const teachersMap: Record<string, IUserTeacher[]> = {};
+
+        await Promise.all(
+            newSubjects.map(async (subj) => {
+                try {
+                    const list = await getEligibleTeachersByGradeAndLesson(level, subj);
+                    console.log("[ClassForm] teachers for", subj, "→", list);
+                    teachersMap[subj] = list;
+                } catch (err) {
+                    console.error("[ClassForm] error fetching teachers for", subj, err);
+                    teachersMap[subj] = [];
+                }
+            })
+        );
+
+        setTeachersBySubject(teachersMap);
 
         try {
-            await createClass(payload);
-            setStatusMessage("Class created successfully!");
+            const stuList = await getEligibleStudentsByGrade(grade, classId);
+            console.log("👧👦 eligible students for grade", grade, "→", stuList);
+
+            // split into already-selected & available
+            const selected: IUserStudent[] = stuList.filter((s) =>
+                initialStudentIds.includes(s.id)
+            );
+            const available: IUserStudent[] = stuList.filter(
+                (s) => !initialStudentIds.includes(s.id)
+            );
+
+            setSelectedStudents(selected);
+            setAvailableStudents(available);
+            setValue(
+                "studentIds",
+                selected.map((s) => s.id),
+                { shouldValidate: true }
+            );
+        } catch (err) {
+            console.error("[ClassForm] error fetching students:", err);
+            setSelectedStudents([]);
+            setAvailableStudents([]);
+            setValue("studentIds", [], { shouldValidate: true });
+        }
+    };
+
+    useEffect(() => {
+        const initialGrade = data?.grade ?? gradeOptions[0];
+        const initialStudentIds = data?.studentIds ?? [];
+        const initialTeachersBySubject = data?.teachersBySubject;
+
+        setValue("grade", initialGrade, { shouldValidate: false });
+
+        void loadDataForGrade(initialGrade, initialStudentIds, initialTeachersBySubject);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const onSubmit = handleSubmit(async (form) => {
+        const teacherIds = Object.values(form.teachersBySubject).filter((tid) => tid !== "");
+        const studentIds = selectedStudents.map((s) => s.id); // ALWAYS send, even if []
+
+        const payload: ClassPayload = {
+            name: form.className.trim(),
+            grade: form.grade,
+            supervisor: form.supervisorId || undefined,
+            teacherIds: teacherIds.length ? teacherIds : [],
+            studentIds,
+        };
+
+        try {
+            if (type === "create") {
+                await createClass(payload);
+                setStatusMessage("Class created successfully!");
+            } else if (type === "update" && classId) {
+                await updateClass(classId, payload);
+                setStatusMessage("Class updated successfully!");
+            }
             onSuccess?.();
         } catch (err) {
-            console.error("Error creating class:", err);
-            setStatusMessage("Failed to create class. Please try again.");
+            console.error("Error saving class:", err);
+            setStatusMessage("Failed to save class. Please try again.");
         }
     });
 
@@ -88,66 +165,50 @@ export default function ClassForm({ type, data, onSuccess }: ClassFormProps) {
         const newGrade = e.target.value;
         setValue("grade", newGrade, { shouldValidate: true });
 
-        const newSubjects = gradeLessonMap[newGrade] || [];
-        const blankMap: Record<string, string> = {};
-        newSubjects.forEach((subj) => (blankMap[subj] = ""));
-        setValue("teachersBySubject", blankMap);
-
-        const level = getGradeLevelFromGrade(newGrade);
-        const newMap: Record<string, IUserTeacher[]> = {};
-        await Promise.all(
-            newSubjects.map(async (subj) => {
-                try {
-                    const list = await getEligibleTeachersByGradeAndLesson(level, subj);
-                    newMap[subj] = list;
-                } catch {
-                    newMap[subj] = [];
-                }
-            })
-        );
-        setTeachersBySubject(newMap);
-
-        try {
-            const stuList = await getEligibleStudentsByGrade(newGrade);
-            setAvailableStudents(stuList);
-            setSelectedStudents([]);
-            setValue("studentIds", [], { shouldValidate: true });
-        } catch {
-            setAvailableStudents([]);
-            setSelectedStudents([]);
-            setValue("studentIds", [], { shouldValidate: true });
-        }
+        // when changing grade in edit mode, we reset selections
+        await loadDataForGrade(newGrade, [], {});
     }
 
     function onAddStudent(e: React.ChangeEvent<HTMLSelectElement>) {
         const id = e.target.value;
         if (!id) return;
+
         const stu = availableStudents.find((s) => s.id === id);
         if (!stu) return;
-        const next = [...selectedStudents, stu];
-        setSelectedStudents(next);
-        setAvailableStudents((prev) => prev.filter((s) => s.id !== id));
+
+        const nextSelected = [...selectedStudents, stu];
+        const nextAvailable = availableStudents.filter((s) => s.id !== id);
+
+        setSelectedStudents(nextSelected);
+        setAvailableStudents(nextAvailable);
         setValue(
             "studentIds",
-            next.map((s) => s.id),
+            nextSelected.map((s) => s.id),
             { shouldValidate: true }
         );
+
         e.target.selectedIndex = 0;
     }
 
     function onRemoveStudent(id: string) {
         const stu = selectedStudents.find((s) => s.id === id);
         if (!stu) return;
-        const next = selectedStudents.filter((s) => s.id !== id);
-        setSelectedStudents(next);
-        setAvailableStudents((prev) => [...prev, stu]);
+
+        const nextSelected = selectedStudents.filter((s) => s.id !== id);
+        const nextAvailable = [...availableStudents, stu];
+
+        setSelectedStudents(nextSelected);
+        setAvailableStudents(nextAvailable);
         setValue(
             "studentIds",
-            next.map((s) => s.id),
+            nextSelected.map((s) => s.id),
             { shouldValidate: true }
         );
     }
 
+    // ─────────────────────────────────────────────
+    // JSX
+    // ─────────────────────────────────────────────
     return (
         <div className="max-h-[80vh] overflow-y-auto p-4">
             <form
@@ -188,9 +249,10 @@ export default function ClassForm({ type, data, onSuccess }: ClassFormProps) {
                         {...register("grade", { required: true })}
                         className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400"
                         onChange={onGradeChange}
+                        defaultValue={selectedGrade}
                     >
-                        {gradeOptions.map((g, i) => (
-                            <option key={i} value={g}>
+                        {gradeOptions.map((g) => (
+                            <option key={g} value={g}>
                                 Grade {g}
                             </option>
                         ))}
@@ -212,8 +274,8 @@ export default function ClassForm({ type, data, onSuccess }: ClassFormProps) {
                                 className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400"
                             >
                                 <option value="">-- No Supervisor --</option>
-                                {allTeachers.map((t, i) => (
-                                    <option key={i} value={t.id}>
+                                {allTeachers.map((t) => (
+                                    <option key={t.id} value={t.id}>
                                         {t.name} {t.surname}
                                     </option>
                                 ))}
@@ -222,16 +284,16 @@ export default function ClassForm({ type, data, onSuccess }: ClassFormProps) {
                     />
                 </div>
 
-                {/* Assign Teachers */}
+                {/* Assign Teachers by Subject */}
                 {subjects.length > 0 && (
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium text-gray-600">
                             Assign Teachers by Subject (optional)
                         </h3>
-                        {subjects.map((subj, i) => {
+                        {subjects.map((subj) => {
                             const opts = teachersBySubject[subj] || [];
                             return (
-                                <div key={i} className="flex flex-col">
+                                <div key={subj} className="flex flex-col">
                                     <label className="mb-2 text-gray-600 font-medium">{subj}</label>
                                     <Controller
                                         name={`teachersBySubject.${subj}`}
@@ -242,8 +304,8 @@ export default function ClassForm({ type, data, onSuccess }: ClassFormProps) {
                                                 className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400"
                                             >
                                                 <option value="">-- No Teacher Assigned --</option>
-                                                {opts.map((t, j) => (
-                                                    <option key={j} value={t.id}>
+                                                {opts.map((t) => (
+                                                    <option key={t.id} value={t.id}>
                                                         {t.name} {t.surname}
                                                     </option>
                                                 ))}
@@ -267,16 +329,18 @@ export default function ClassForm({ type, data, onSuccess }: ClassFormProps) {
                         onChange={onAddStudent}
                     >
                         <option value="">-- Choose a Student --</option>
-                        {availableStudents.map((s, i) => (
-                            <option key={i} value={s.id}>
+                        {availableStudents.map((s) => (
+                            <option key={s.id} value={s.id}>
                                 {s.name} {s.surname}
                             </option>
                         ))}
                     </select>
+
+                    {/* Selected students (can remove) */}
                     <div className="flex flex-wrap gap-2">
-                        {selectedStudents.map((s, i) => (
+                        {selectedStudents.map((s) => (
                             <div
-                                key={i}
+                                key={s.id}
                                 className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-sm"
                             >
                                 {s.name} {s.surname}
@@ -296,7 +360,7 @@ export default function ClassForm({ type, data, onSuccess }: ClassFormProps) {
                     type="submit"
                     className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition"
                 >
-                    Save Class
+                    {type === "create" ? "Save Class" : "Save Changes"}
                 </button>
             </form>
         </div>

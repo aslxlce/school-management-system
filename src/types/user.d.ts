@@ -1,6 +1,5 @@
 export type Sex = "male" | "female";
 
-/** All grades we support – keep in sync with `gradeLessons.ts` */
 export type Grade =
     | "1"
     | "2"
@@ -29,18 +28,13 @@ export interface IScheduleEntry {
     classId: string;
     teacherId?: string;
 }
-/* -------------------------------------------------
- * Base user & discriminated sub-types
- * -------------------------------------------------*/
 
 export interface IUserBase {
-    /** MongoDB _id as string */
     id: string;
     username: string;
     role: "admin" | "parent" | "teacher" | "student";
 }
 
-/* ---------- Admin (no extra props right now) ----- */
 export interface IUserAdmin extends IUserBase {
     role: "admin";
 }
@@ -68,6 +62,7 @@ export interface IUserTeacher extends IUserBase {
     subject: string;
     birthday: Date;
     gradeLevel: "primary" | "middle" | "high";
+    schedule: IScheduleEntry[];
 }
 
 /* ---------- Student -------------------------------*/
@@ -80,14 +75,11 @@ export interface IUserStudent extends IUserBase {
     address: string;
     img?: string;
     sex: Sex;
-    /** e.g. `"7"`, `"10S"`, `"12Mt"` … */
     grade: Grade;
     classId?: string;
     parentId?: string;
     birthday: Date;
+    schedule: IScheduleEntry[];
 }
 
-/* -------------------------------------------------
- * Convenience union
- * -------------------------------------------------*/
 export type User = IUserAdmin | IUserParent | IUserTeacher | IUserStudent;

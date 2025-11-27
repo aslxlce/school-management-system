@@ -179,10 +179,9 @@ const menuItems = [
             {
                 icon: "/home.png",
                 label: "Home",
-                href: "/", // will be overridden based on role
+                href: "/",
                 visible: ["admin", "teacher", "student", "parent"],
             },
-            // ... other items unchanged ...
             {
                 icon: "/teacher.png",
                 label: "Teachers",

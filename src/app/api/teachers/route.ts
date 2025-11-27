@@ -5,109 +5,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/dbConnection";
 import { TeacherModel } from "@/models/User";
-
-// ────────────────────────────────────────────────────────────────────────────
-// POST: Create a new teacher via multipart/form-data
-// ────────────────────────────────────────────────────────────────────────────
-//
-// The old JSON-based POST is preserved below, commented out, for reference:
-//
-// // import { getServerSession } from "next-auth";
-// // import { authOptions } from "@/lib/auth";
-// //
-// // export async function POST(req: NextRequest) {
-// //     try {
-// //         const userData = await req.json();
-// //         await dbConnect();
-// //         const newUser = await TeacherModel.create(userData);
-// //         return NextResponse.json(
-// //             { message: `User '${newUser.name} ${newUser.surname}' created successfully!` },
-// //             { status: 201 }
-// //         );
-// //     } catch (error) {
-// //         console.log(error);
-// //         return NextResponse.json({ error: "Failed to create" }, { status: 500 });
-// //     }
-// // }
-
-export async function POST(req: NextRequest) {
-    try {
-        const formData = await req.formData();
-
-        console.log("Received formData:");
-        for (const [key, value] of formData.entries()) {
-            console.log(`${key}:`, value);
-        }
-
-        const requiredFields = [
-            "username",
-            "password",
-            "email",
-            "name",
-            "surname",
-            "phone",
-            "address",
-            "subject",
-            "birthday",
-            "sex",
-            "gradeLevel",
-        ];
-
-        for (const field of requiredFields) {
-            if (!formData.get(field)) {
-                return NextResponse.json({ error: `Missing field: ${field}` }, { status: 400 });
-            }
-        }
-
-        const newTeacher = {
-            username: formData.get("username") as string,
-            password: formData.get("password") as string,
-            email: formData.get("email") as string,
-            name: formData.get("name") as string,
-            surname: formData.get("surname") as string,
-            phone: formData.get("phone") as string,
-            address: formData.get("address") as string,
-            subject: formData.get("subject") as string,
-            birthday: new Date(formData.get("birthday") as string),
-            sex: formData.get("sex") as "male" | "female",
-            gradeLevel: formData.get("gradeLevel") as "primary" | "middle" | "high",
-            role: "teacher", // ✅ add this line
-        };
-
-        await dbConnect();
-        const created = await TeacherModel.create(newTeacher);
-
-        return NextResponse.json(
-            { message: `User '${created.name} ${created.surname}' created successfully!` },
-            { status: 201 }
-        );
-    } catch (error) {
-        console.error("[TEACHER_CREATE_ERROR]:", error);
-        return NextResponse.json({ error: "Failed to create teacher" }, { status: 500 });
-    }
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// GET: Fetch paginated teachers, only for admins
-// ────────────────────────────────────────────────────────────────────────────
-//
-// The old non-paginated GET is preserved below, commented out, for reference:
-//
-// // export async function GET() {
-// //   try {
-// //     const session = await getServerSession(authOptions);
-// //     if (!session || session.user?.role !== "admin") {
-// //       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-// //     }
-// //
-// //     await dbConnect();
-// //     const teachers = await TeacherModel.find({}).select("-password");
-// //     return NextResponse.json(teachers);
-// //   } catch (error) {
-// //     console.error("Failed to fetch teachers:", error);
-// //     return NextResponse.json({ error: "Failed to fetch teachers" }, { status: 500 });
-// //   }
-// // }
+import { MongoServerError } from "mongodb";
+import fs from "fs/promises";
+import path from "path";
 
 export async function GET(req: NextRequest) {
     try {
@@ -136,34 +36,65 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// The PUT handler is preserved below, commented out, for reference:
-//
-// // export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-// //   try {
-// //     const session = await getServerSession(authOptions);
-// //     if (!session || (session.user?.role !== "admin" && session.user?.id !== params.id)) {
-// //       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-// //     }
-// //
-// //     const userData = await req.json();
-// //     await dbConnect();
-// //
-// //     const updatedUser = await TeacherModel.findByIdAndUpdate(params.id, userData, {
-// //       new: true,
-// //       runValidators: true,
-// //     });
-// //
-// //     if (!updatedUser) {
-// //       return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
-// //     }
-// //
-// //     return NextResponse.json(
-// //       { message: `Teacher updated successfully!`, user: updatedUser },
-// //       { status: 200 }
-// //     );
-// //   } catch (error) {
-// //     console.log(error);
-// //     return NextResponse.json({ error: "Failed to update teacher" }, { status: 500 });
-// //   }
-// // }
+export const config = { api: { bodyParser: false } };
+
+export async function POST(request: Request) {
+    try {
+        const form = await request.formData();
+        const get = (k: string) => (form.get(k) as string | null) ?? "";
+
+        const username = get("username");
+        const password = get("password");
+        const name = get("name");
+        const surname = get("surname");
+        const email = get("email") || undefined;
+        const phone = get("phone") || undefined;
+        const address = get("address");
+        const sex = get("sex") as "male" | "female";
+        const subject = get("subject");
+        const birthday = new Date(get("birthday"));
+        const gradeLevel = get("gradeLevel") as "primary" | "middle" | "high";
+
+        // handle optional photo
+        let imgUrl: string | undefined;
+        const file = form.get("img") as File | null;
+        if (file && file.size > 0) {
+            const buf = Buffer.from(await file.arrayBuffer());
+            const dir = path.join(process.cwd(), "public", "uploads");
+            await fs.mkdir(dir, { recursive: true });
+            const nameSafe = file.name.replace(/\s+/g, "_");
+            const fn = `${Date.now()}_${nameSafe}`;
+            await fs.writeFile(path.join(dir, fn), buf);
+            imgUrl = `/uploads/${fn}`;
+        }
+
+        await dbConnect();
+
+        const teacher = await TeacherModel.create({
+            username,
+            password,
+            name,
+            surname,
+            email,
+            phone,
+            address,
+            sex,
+            subject,
+            birthday,
+            gradeLevel,
+            ...(imgUrl ? { img: imgUrl } : {}),
+            schedule: [],
+        });
+
+        return NextResponse.json(teacher, { status: 201 });
+    } catch (e: unknown) {
+        console.error(e);
+        const msg =
+            e instanceof MongoServerError
+                ? e.message
+                : e instanceof Error
+                ? e.message
+                : "Unknown error";
+        return NextResponse.json({ message: msg }, { status: 500 });
+    }
+}

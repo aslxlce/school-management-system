@@ -1,34 +1,19 @@
 // // src/action/client/student.ts
+// import axios, { AxiosError } from "axios";
 // import axiosConfig from "./axiosConfig";
 // import type { Grade, IUserStudent } from "@/types/user";
 
-// /**
-//  * Create a new student.
-//  * @param formData - FormData containing student fields.
-//  * @returns A message indicating success.
-//  */
-// export const createStudent = async (formData: FormData): Promise<{ message: string }> => {
-//     try {
-//         const res = await axiosConfig.post("/students", formData);
-//         return res.data;
-//     } catch (error) {
-//         console.error("[STUDENT_CREATE_ERROR]:", error);
-//         throw new Error("Student creation failed.");
-//     }
-// };
-
-// /**
-//  * Update an existing student.
-//  * @param id - The student’s ID.
-//  * @param formData - FormData containing updated fields.
-//  * @returns A message indicating success.
-//  */
 // export const updateStudent = async (
 //     id: string,
 //     formData: FormData
 // ): Promise<{ message: string }> => {
+//     const payload = Object.fromEntries(formData.entries());
+//     console.log(`Updating student ${id} with payload:`, payload);
+
 //     try {
-//         const res = await axiosConfig.put(`/students/${id}`, formData);
+//         const res = await axiosConfig.put<{ message: string }>(`/students/${id}`, payload, {
+//             headers: { "Content-Type": "application/json" },
+//         });
 //         return res.data;
 //     } catch (error) {
 //         console.error("[STUDENT_UPDATE_ERROR]:", error);
@@ -36,60 +21,87 @@
 //     }
 // };
 
-// /** Raw shape returned by the API before mapping. */
-// interface RawStudent {
-//     _id: { toString(): string };
-//     username: string;
+// /**
+//  * Shape returned by /api/students/by-grade.
+//  * It supports both `_id` and `id` to be safe.
+//  */
+// interface RawStudentApi {
+//     _id?: string;
+//     id?: string;
+//     username?: string;
 //     name: string;
 //     surname: string;
 //     email?: string;
 //     img?: string;
 //     phone?: string;
 //     grade: string;
-//     classId?: { toString(): string };
+//     classId?: string;
 //     address: string;
-//     parentId?: { toString(): string };
+//     parentId?: string;
 //     birthday: string | Date;
 //     sex: "male" | "female";
 // }
 
 // /**
-//  * Fetch students eligible by grade.
-//  * @param gradeFilter - Grade string to filter by.
-//  * @returns An array of IUserStudent.
+//  * Fetch students eligible for a class of the given grade:
+//  * - correct grade
+//  * - active / unassigned filtering is done on the server
 //  */
 // export async function getEligibleStudentsByGrade(gradeFilter: string): Promise<IUserStudent[]> {
 //     try {
-//         const res = await axiosConfig.get<RawStudent[]>("/students/by-grade", {
-//             params: { grade: gradeFilter },
+//         const trimmed = gradeFilter.trim();
+//         if (!trimmed) return [];
+
+//         const res = await axiosConfig.get<RawStudentApi[]>("/students/by-grade", {
+//             params: { grade: trimmed },
 //         });
 
-//         return res.data.map((s) => ({
-//             id: s._id.toString(),
-//             username: "", // fill in if available from your API
-//             role: "student",
-//             name: s.name,
-//             surname: s.surname,
-//             email: s.email,
-//             img: s.img,
-//             phone: s.phone ?? "",
-//             grade: s.grade as Grade,
-//             classId: s.classId?.toString(),
-//             address: s.address,
-//             parentId: s.parentId?.toString(),
-//             birthday: typeof s.birthday === "string" ? new Date(s.birthday) : s.birthday,
-//             sex: s.sex,
-//         }));
+//         const apiStudents = res.data;
+//         console.log("[CLIENT] raw eligible students for grade", trimmed, "→", apiStudents);
+
+//         if (!Array.isArray(apiStudents)) {
+//             console.error("[getEligibleStudentsByGrade] Non-array response:", apiStudents);
+//             return [];
+//         }
+
+//         const mapped: IUserStudent[] = apiStudents
+//             .map((s): IUserStudent | null => {
+//                 const id = s._id ?? s.id;
+//                 if (!id) {
+//                     console.warn("[getEligibleStudentsByGrade] Missing id/_id for student:", s);
+//                     return null;
+//                 }
+
+//                 return {
+//                     id,
+//                     username: s.username ?? "", // you don't really need username here
+//                     role: "student",
+//                     name: s.name,
+//                     surname: s.surname,
+//                     email: s.email,
+//                     img: s.img,
+//                     phone: s.phone ?? "",
+//                     grade: s.grade as Grade,
+//                     classId: s.classId ?? "",
+//                     address: s.address,
+//                     parentId: s.parentId,
+//                     birthday: typeof s.birthday === "string" ? new Date(s.birthday) : s.birthday,
+//                     sex: s.sex,
+//                     schedule: [],
+//                 };
+//             })
+//             .filter((stu): stu is IUserStudent => stu !== null);
+
+//         return mapped;
 //     } catch (err) {
 //         console.error("[FETCH_STUDENTS_BY_GRADE_ERROR]:", err);
 //         return [];
 //     }
 // }
 
-// /** Alias for clarity elsewhere in your components. */
+// // you were re-exporting this; keep it if something else relies on it
 // export const fetchStudents = getEligibleStudentsByGrade;
 
-// /** Shape returned when searching by name. */
 // export interface StudentOption {
 //     _id: string;
 //     name: string;
@@ -97,70 +109,81 @@
 //     username: string;
 // }
 
-// /**
-//  * Search for students by name.
-//  * @param q - Search query string.
-//  * @returns An array of StudentOption.
-//  */
-// export async function fetchStudentsByName(q: string): Promise<StudentOption[]> {
-//     if (!q.trim()) return [];
+// export interface IStudentLite {
+//     _id?: string;
+//     id?: string;
+//     username: string;
+//     name: string;
+//     surname: string;
+// }
 
-//     try {
-//         const res = await axiosConfig.get<{
-//             data: StudentOption[];
-//             total: number;
-//             page: number;
-//             totalPages: number;
-//         }>("/students", {
-//             params: { search: q.trim() },
-//         });
+// export const fetchStudentsByName = async (q: string): Promise<IStudentLite[]> => {
+//     const query = q.trim();
+//     if (!query) return [];
 
-//         return res.data.data;
-//     } catch (err) {
-//         console.error("[SEARCH_STUDENTS_BY_NAME_ERROR]:", err);
+//     const res = await axiosConfig.get<IStudentLite[]>("/students", {
+//         params: { search: query },
+//     });
+
+//     const data = res.data;
+//     if (!Array.isArray(data)) {
+//         console.error("[fetchStudentsByName] Unexpected response:", data);
 //         return [];
 //     }
-// }
+
+//     return data;
+// };
 
 // export async function fetchMyStudentProfile(id: string): Promise<IUserStudent> {
 //     const res = await axiosConfig.get<IUserStudent>(`/students/${id}`);
 //     if (!res.status.toString().startsWith("2")) {
 //         throw new Error(`Failed to load student ${id}: ${res.statusText}`);
 //     }
-//     return res.data;
+//     return {
+//         ...res.data,
+//         birthday: new Date(res.data.birthday),
+//     };
+// }
+
+// export async function createStudent(formData: FormData): Promise<IUserStudent> {
+//     // Log exactly what we're sending:
+//     const entries: Array<[string, string]> = Array.from(formData.entries()).map(([key, value]) => {
+//         if (value instanceof FileList) {
+//             return [key, `[FileList:${value.length}]`];
+//         } else {
+//             return [key, String(value)];
+//         }
+//     });
+//     console.log("Creating student, FormData entries:", entries);
+
+//     try {
+//         // Send the raw FormData; let Axios set the multipart headers
+//         const res = await axiosConfig.post<IUserStudent>("/students", formData);
+//         return res.data;
+//     } catch (err: unknown) {
+//         console.error("[STUDENT_CREATE_ERROR]:", err);
+
+//         let message = "Student creation failed.";
+//         if (axios.isAxiosError(err)) {
+//             const axiosErr = err as AxiosError<{ message?: string }>;
+//             if (axiosErr.response?.data?.message) {
+//                 message = axiosErr.response.data.message;
+//             } else if (axiosErr.message) {
+//                 message = axiosErr.message;
+//             }
+//         } else if (err instanceof Error) {
+//             message = err.message;
+//         }
+
+//         throw new Error(message);
+//     }
 // }
 
 // src/action/client/student.ts
+import axios, { AxiosError } from "axios";
 import axiosConfig from "./axiosConfig";
 import type { Grade, IUserStudent } from "@/types/user";
 
-/**
- * Create a new student.
- * @param formData - FormData containing student fields.
- * @returns The created student record.
- */
-export const createStudent = async (formData: FormData): Promise<IUserStudent> => {
-    // Convert FormData into a plain object
-    const payload = Object.fromEntries(formData.entries());
-    console.log("Creating student with payload:", payload);
-
-    try {
-        const res = await axiosConfig.post<IUserStudent>("/students", payload, {
-            headers: { "Content-Type": "application/json" },
-        });
-        return res.data;
-    } catch (error) {
-        console.error("[STUDENT_CREATE_ERROR]:", error);
-        throw new Error("Student creation failed.");
-    }
-};
-
-/**
- * Update an existing student.
- * @param id - The student’s ID.
- * @param formData - FormData containing updated fields.
- * @returns A message indicating success.
- */
 export const updateStudent = async (
     id: string,
     formData: FormData
@@ -179,60 +202,96 @@ export const updateStudent = async (
     }
 };
 
-/** Raw shape returned by the API before mapping. */
-interface RawStudent {
-    _id: { toString(): string };
-    username: string;
+/**
+ * Shape returned by /api/students/by-grade.
+ * It supports both `_id` and `id` to be safe.
+ */
+interface RawStudentApi {
+    _id?: string;
+    id?: string;
+    username?: string;
     name: string;
     surname: string;
     email?: string;
     img?: string;
     phone?: string;
     grade: string;
-    classId?: { toString(): string };
+    classId?: string;
     address: string;
-    parentId?: { toString(): string };
+    parentId?: string;
     birthday: string | Date;
     sex: "male" | "female";
 }
 
 /**
- * Fetch students eligible by grade.
- * @param gradeFilter - Grade string to filter by.
- * @returns An array of IUserStudent.
+ * Fetch students eligible for a class of the given grade:
+ * - correct grade
+ * - active / unassigned filtering is done on the server
+ * - if classId is provided, includes students already assigned to that class
  */
-export async function getEligibleStudentsByGrade(gradeFilter: string): Promise<IUserStudent[]> {
+export async function getEligibleStudentsByGrade(
+    gradeFilter: string,
+    classId?: string
+): Promise<IUserStudent[]> {
     try {
-        const res = await axiosConfig.get<RawStudent[]>("/students/by-grade", {
-            params: { grade: gradeFilter },
+        const trimmed = gradeFilter.trim();
+        if (!trimmed) return [];
+
+        const params: Record<string, string> = { grade: trimmed };
+        if (classId && classId.trim().length > 0) {
+            params.classId = classId.trim();
+        }
+
+        const res = await axiosConfig.get<RawStudentApi[]>("/students/by-grade", {
+            params,
         });
 
-        return res.data.map((s) => ({
-            id: s._id.toString(),
-            username: "", // fill in if available from your API
-            role: "student",
-            name: s.name,
-            surname: s.surname,
-            email: s.email,
-            img: s.img,
-            phone: s.phone ?? "",
-            grade: s.grade as Grade,
-            classId: s.classId?.toString(),
-            address: s.address,
-            parentId: s.parentId?.toString(),
-            birthday: typeof s.birthday === "string" ? new Date(s.birthday) : s.birthday,
-            sex: s.sex,
-        }));
+        const apiStudents = res.data;
+        console.log("[CLIENT] raw eligible students for grade", trimmed, "→", apiStudents);
+
+        if (!Array.isArray(apiStudents)) {
+            console.error("[getEligibleStudentsByGrade] Non-array response:", apiStudents);
+            return [];
+        }
+
+        const mapped: IUserStudent[] = apiStudents
+            .map((s): IUserStudent | null => {
+                const id = s._id ?? s.id;
+                if (!id) {
+                    console.warn("[getEligibleStudentsByGrade] Missing id/_id for student:", s);
+                    return null;
+                }
+
+                return {
+                    id,
+                    username: s.username ?? "",
+                    role: "student",
+                    name: s.name,
+                    surname: s.surname,
+                    email: s.email,
+                    img: s.img,
+                    phone: s.phone ?? "",
+                    grade: s.grade as Grade,
+                    classId: s.classId ?? "",
+                    address: s.address,
+                    parentId: s.parentId,
+                    birthday: typeof s.birthday === "string" ? new Date(s.birthday) : s.birthday,
+                    sex: s.sex,
+                    schedule: [],
+                };
+            })
+            .filter((stu): stu is IUserStudent => stu !== null);
+
+        return mapped;
     } catch (err) {
         console.error("[FETCH_STUDENTS_BY_GRADE_ERROR]:", err);
         return [];
     }
 }
 
-/** Alias for clarity elsewhere in your components. */
+// you were re-exporting this; keep it if something else relies on it
 export const fetchStudents = getEligibleStudentsByGrade;
 
-/** Shape returned when searching by name. */
 export interface StudentOption {
     _id: string;
     name: string;
@@ -240,40 +299,71 @@ export interface StudentOption {
     username: string;
 }
 
-/**
- * Search for students by name.
- * @param q - Search query string.
- * @returns An array of StudentOption.
- */
-export async function fetchStudentsByName(q: string): Promise<StudentOption[]> {
-    if (!q.trim()) return [];
-
-    try {
-        const res = await axiosConfig.get<{
-            data: StudentOption[];
-            total: number;
-            page: number;
-            totalPages: number;
-        }>("/students", {
-            params: { search: q.trim() },
-        });
-
-        return res.data.data;
-    } catch (err) {
-        console.error("[SEARCH_STUDENTS_BY_NAME_ERROR]:", err);
-        return [];
-    }
+export interface IStudentLite {
+    _id?: string;
+    id?: string;
+    username: string;
+    name: string;
+    surname: string;
 }
 
-/**
- * Fetch the currently authenticated student’s full profile.
- * @param id - The student’s ID.
- * @returns An IUserStudent object.
- */
+export const fetchStudentsByName = async (q: string): Promise<IStudentLite[]> => {
+    const query = q.trim();
+    if (!query) return [];
+
+    const res = await axiosConfig.get<IStudentLite[]>("/students", {
+        params: { search: query },
+    });
+
+    const data = res.data;
+    if (!Array.isArray(data)) {
+        console.error("[fetchStudentsByName] Unexpected response:", data);
+        return [];
+    }
+
+    return data;
+};
+
 export async function fetchMyStudentProfile(id: string): Promise<IUserStudent> {
     const res = await axiosConfig.get<IUserStudent>(`/students/${id}`);
     if (!res.status.toString().startsWith("2")) {
         throw new Error(`Failed to load student ${id}: ${res.statusText}`);
     }
-    return res.data;
+    return {
+        ...res.data,
+        birthday: new Date(res.data.birthday),
+    };
+}
+
+export async function createStudent(formData: FormData): Promise<IUserStudent> {
+    // Log exactly what we're sending:
+    const entries: Array<[string, string]> = Array.from(formData.entries()).map(([key, value]) => {
+        if (value instanceof FileList) {
+            return [key, `[FileList:${value.length}]`];
+        }
+        return [key, String(value)];
+    });
+    console.log("Creating student, FormData entries:", entries);
+
+    try {
+        // Send the raw FormData; let Axios set the multipart headers
+        const res = await axiosConfig.post<IUserStudent>("/students", formData);
+        return res.data;
+    } catch (err: unknown) {
+        console.error("[STUDENT_CREATE_ERROR]:", err);
+
+        let message = "Student creation failed.";
+        if (axios.isAxiosError(err)) {
+            const axiosErr = err as AxiosError<{ message?: string }>;
+            if (axiosErr.response?.data?.message) {
+                message = axiosErr.response.data.message;
+            } else if (axiosErr.message) {
+                message = axiosErr.message;
+            }
+        } else if (err instanceof Error) {
+            message = err.message;
+        }
+
+        throw new Error(message);
+    }
 }

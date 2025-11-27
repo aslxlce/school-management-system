@@ -2,34 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import ClassModel from "@/models/Class";
 import dbConnect from "@/lib/dbConnection";
 
-// export async function POST(req: NextRequest) {
-//     await dbConnect();
-
-//     try {
-//         const body = await req.json();
-
-//         const { name, grade, supervisorId, lessons, studentIds, schedule } = body;
-
-//         // Extract teacherIds from lessons
-//         const teacherIds = lessons.map((l: { teacherId: string }) => l.teacherId).filter(Boolean);
-
-//         const newClass = await ClassModel.create({
-//             name,
-//             grade: parseInt(grade), // grade is a string from the form
-//             teacherIds,
-//             studentIds,
-//             supervisor: supervisorId,
-//             lessons: lessons.map((l: { subject: string }) => l.subject),
-//             schedule,
-//         });
-
-//         return NextResponse.json(newClass, { status: 201 });
-//     } catch (error) {
-//         console.error("Error creating class:", error);
-//         return NextResponse.json({ error: "Failed to create class" }, { status: 500 });
-//     }
-// }
-
 interface LessonEntry {
     lessonId: string;
     teacherId: string;
@@ -44,7 +16,6 @@ interface ClassRequestBody {
     schedule?: string;
 }
 
-/** The portion of ClassRequestBody that’s actually stored in Mongo */
 type ClassCreateDoc = {
     name: string;
     grade: string;
@@ -59,12 +30,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     try {
         await dbConnect();
 
-        // Parse and type‐assert the request JSON
         const body = (await req.json()) as ClassRequestBody;
 
         console.log("[API] POST /api/classes body:", body);
 
-        // Validate required fields
         if (typeof body.name !== "string" || body.name.trim() === "") {
             return NextResponse.json({ error: "Missing or invalid 'name'" }, { status: 400 });
         }
@@ -72,7 +41,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             return NextResponse.json({ error: "Missing or invalid 'grade'" }, { status: 400 });
         }
 
-        // Build the document to insert, strictly typed as ClassCreateDoc
         const newDoc: ClassCreateDoc = {
             name: body.name.trim(),
             grade: body.grade.trim(),
@@ -127,39 +95,32 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
-    const gradeParam = searchParams.get("grade"); // null | "7" | "11M" …
+    const gradeParam = searchParams.get("grade");
 
     await dbConnect();
 
-    /* ------------------------------------------------------------
-     * Build a filter tolerant to legacy fields & storage styles
-     * -----------------------------------------------------------*/
     const filter: Record<string, unknown> = {};
 
     if (gradeParam) {
         const trimmed = gradeParam.trim();
         const numeric = Number(trimmed);
-        const isDigits = /^\d+$/.test(trimmed); // "7", "09" …
+        const isDigits = /^\d+$/.test(trimmed);
 
         if (isDigits) {
-            // match either Number(7) OR the string "7"
             filter.$or = [
                 { grade: numeric },
-                { grade: trimmed }, // new schema
+                { grade: trimmed },
                 { gradeId: numeric },
-                { gradeId: trimmed }, // legacy field
+                { gradeId: trimmed },
             ];
         } else {
-            // alpha-suffix grades are always stored as strings
             filter.$or = [{ grade: trimmed }, { gradeId: trimmed }];
         }
     }
 
     console.log("[API /classes] filter =", filter);
 
-    const classes = await ClassModel.find(filter)
-        .select("_id name grade gradeId") // keep payload small
-        .lean();
+    const classes = await ClassModel.find(filter).select("_id name grade gradeId").lean();
 
     return NextResponse.json(classes);
 }

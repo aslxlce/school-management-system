@@ -6,24 +6,6 @@ import ClassModel from "@/models/Class";
 import { TeacherModel } from "@/models/User";
 import { Types, Document } from "mongoose";
 
-/** Our clean UI shape for a teacher */ /* 
-export interface IUserTeacher {
-    id: string;
-    username: string;
-    name: string;
-    surname: string;
-    email: string;
-    phone: string;
-    address: string;
-    img?: string;
-    sex: "male" | "female";
-    subject: string;
-    birthday: Date;
-    gradeLevel: "primary" | "middle" | "high";
-    role: "teacher";
-} */
-
-/** The raw shape returned by `.lean()` */
 interface RawTeacher extends Document {
     _id: Types.ObjectId;
     username: string;

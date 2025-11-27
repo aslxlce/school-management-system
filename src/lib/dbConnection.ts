@@ -4,7 +4,7 @@ declare global {
     var mongoose: {
         conn: null | Mongoose;
         promise: null | Promise<Mongoose>;
-    }; // This must be a `var` and not a `let / const`
+    };
 }
 
 let cached = global.mongoose;

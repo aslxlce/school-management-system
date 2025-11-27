@@ -163,6 +163,8 @@
 
 // export default SingleTeacherPage;
 
+//--------------------------------------------------------------------------------------------------------------------
+
 // src/app/dashboard/list/teachers/[id]/page.tsx
 export const dynamic = "force-dynamic";
 

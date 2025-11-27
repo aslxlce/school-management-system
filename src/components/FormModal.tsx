@@ -1,129 +1,3 @@
-// "use client";
-
-// import dynamic from "next/dynamic";
-// import Image from "next/image";
-// import { useRouter } from "next/navigation";
-// import { useState, type FC } from "react";
-
-// // 1) Shared form props (now includes onCancel)
-// interface FormComponentProps {
-//     type: "create" | "update";
-//     data?: Record<string, unknown>;
-//     onSuccess?: () => void;
-//     onCancel?: () => void;
-// }
-
-// // 2) Dynamically import each raw form & cast it to FC<FormComponentProps>
-// const RawTeacherForm = dynamic(() => import("./forms/TeacherForm"), {
-//     ssr: false,
-// }) as FC<FormComponentProps>;
-// const RawStudentForm = dynamic(() => import("./forms/StudentForm"), {
-//     ssr: false,
-// }) as FC<FormComponentProps>;
-// const RawParentForm = dynamic(() => import("./forms/ParentForm"), {
-//     ssr: false,
-// }) as FC<FormComponentProps>;
-// const RawClassForm = dynamic(() => import("./forms/ClassForm"), {
-//     ssr: false,
-// }) as FC<FormComponentProps>;
-// const RawAnnouncementForm = dynamic(() => import("./forms/AnnouncementForm"), {
-//     ssr: false,
-// }) as FC<FormComponentProps>;
-
-// // 3) Map table names to their form component
-// type TableType = "teacher" | "student" | "parent" | "class" | "announcement";
-// const forms: Record<TableType, FC<FormComponentProps>> = {
-//     teacher: RawTeacherForm,
-//     student: RawStudentForm,
-//     parent: RawParentForm,
-//     class: RawClassForm,
-//     announcement: RawAnnouncementForm,
-// };
-
-// type FormType = "create" | "update" | "delete";
-
-// interface FormModalProps {
-//     table: TableType;
-//     type: FormType;
-//     data?: Record<string, unknown>;
-//     id?: number;
-// }
-
-// export default function FormModal({ table, type, data, id }: FormModalProps) {
-//     const [open, setOpen] = useState(false);
-//     const router = useRouter();
-
-//     function handleSuccess() {
-//         router.refresh(); // re-fetch on success
-//         setOpen(false);
-//     }
-//     function handleCancel() {
-//         setOpen(false); // just close
-//     }
-
-//     // Decide what to render inside the modal
-//     let body: React.ReactNode;
-//     if (type === "delete" && id != null) {
-//         body = (
-//             <form
-//                 onSubmit={async (e) => {
-//                     e.preventDefault();
-//                     // your delete logic here…
-//                     handleSuccess();
-//                 }}
-//                 className="flex flex-col gap-4"
-//             >
-//                 <p className="text-center">
-//                     Are you sure you want to delete this <strong>{table}</strong>? This cannot be
-//                     undone.
-//                 </p>
-//                 <button className="bg-red-700 text-white py-2 px-4 rounded self-center">
-//                     Delete
-//                 </button>
-//                 <button
-//                     type="button"
-//                     onClick={handleCancel}
-//                     className="mt-2 px-4 py-2 border rounded self-center"
-//                 >
-//                     Cancel
-//                 </button>
-//             </form>
-//         );
-//     } else if ((type === "create" || type === "update") && forms[table]) {
-//         const C = forms[table];
-//         body = <C type={type} data={data} onSuccess={handleSuccess} onCancel={handleCancel} />;
-//     } else {
-//         body = <p>Form not implemented for “{table}”.</p>;
-//     }
-
-//     // Button styling
-//     const size = type === "create" ? "w-9 h-8" : "w-7 h-7";
-//     const bg =
-//         type === "create" ? "bg-yellow-400" : type === "update" ? "bg-sky-400" : "bg-purple-400";
-
-//     return (
-//         <>
-//             <button
-//                 className={`${size} ${bg} flex items-center justify-center rounded-full`}
-//                 onClick={() => setOpen(true)}
-//             >
-//                 <Image src={`/${type}.png`} alt={type} width={16} height={16} />
-//             </button>
-
-//             {open && (
-//                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-//                     <div className="relative bg-white p-6 rounded-lg w-[90%] md:w-3/4 lg:w-1/2">
-//                         {body}
-//                         <button className="absolute top-4 right-4" onClick={handleCancel}>
-//                             <Image src="/close.png" alt="Close" width={16} height={16} />
-//                         </button>
-//                     </div>
-//                 </div>
-//             )}
-//         </>
-//     );
-// }
-
 // src/components/FormModal.tsx
 "use client";
 
@@ -132,7 +6,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, type FC } from "react";
 
-// 1) Shared form props (now includes onCancel)
 export interface FormComponentProps {
     type: "create" | "update";
     data?: Record<string, unknown>;
@@ -140,7 +13,6 @@ export interface FormComponentProps {
     onCancel?: () => void;
 }
 
-// 2) Dynamically import each raw form & cast it to FC<FormComponentProps>
 const RawTeacherForm = dynamic(() => import("./forms/TeacherForm"), {
     ssr: false,
 }) as FC<FormComponentProps>;
@@ -161,12 +33,10 @@ const RawAnnouncementForm = dynamic(() => import("./forms/AnnouncementForm"), {
     ssr: false,
 }) as FC<FormComponentProps>;
 
-// 2a) Dynamically import EventForm
 const RawEventForm = dynamic(() => import("./forms/EventForm"), {
     ssr: false,
 }) as FC<FormComponentProps>;
 
-// 3) Map table names to their form component
 export type TableType = "teacher" | "student" | "parent" | "class" | "announcement" | "event";
 
 const forms: Record<TableType, FC<FormComponentProps>> = {
@@ -192,15 +62,13 @@ export default function FormModal({ table, type, data, id }: FormModalProps) {
     const router = useRouter();
 
     function handleSuccess() {
-        router.refresh(); // re-fetch on success
-        setOpen(false);
+        router.refresh();
     }
 
     function handleCancel() {
-        setOpen(false); // just close
+        setOpen(false);
     }
 
-    // Decide what to render inside the modal
     let body: React.ReactNode;
 
     if (type === "delete" && id != null) {
@@ -208,7 +76,6 @@ export default function FormModal({ table, type, data, id }: FormModalProps) {
             <form
                 onSubmit={async (e) => {
                     e.preventDefault();
-                    // your delete logic here…
                     handleSuccess();
                 }}
                 className="flex flex-col gap-4"
@@ -236,7 +103,6 @@ export default function FormModal({ table, type, data, id }: FormModalProps) {
         body = <p>Form not implemented for “{table}”.</p>;
     }
 
-    // Button styling
     const size = type === "create" ? "w-9 h-8" : "w-7 h-7";
     const bg =
         type === "create" ? "bg-yellow-400" : type === "update" ? "bg-sky-400" : "bg-purple-400";

@@ -52,6 +52,7 @@ export async function fetchStudentById(id: string): Promise<StudentDetail | null
         classId: s.classId?.toString(),
         parentId: s.parentId?.toString(),
         birthday: s.birthday,
+        schedule: [],
     };
 
     let scheduleEvents: CalendarEvent[] = [];
@@ -100,6 +101,7 @@ export async function fetchStudents(page = 1, limit = 10): Promise<PaginatedStud
         parentId: s.parentId?.toString(),
         birthday: s.birthday,
         sex: s.sex,
+        schedule: [],
     }));
 
     const totalPages = Math.ceil(total / limit);

@@ -1,32 +1,3 @@
-// // src/app/api/announcements/route.ts
-// import { NextRequest, NextResponse } from "next/server";
-// import dbConnect from "@/lib/dbConnection";
-// import { AnnouncementModel } from "@/models/Announcement";
-
-// export const dynamic = "force-dynamic";
-
-// // GET /api/announcements
-// export async function GET() {
-//     await dbConnect();
-//     const items = await AnnouncementModel.find().sort({ date: -1 }).lean();
-//     return NextResponse.json(items);
-// }
-
-// // POST /api/announcements
-// export async function POST(req: NextRequest) {
-//     await dbConnect();
-//     const { title, date, description } = await req.json();
-//     if (!title || !date || !description) {
-//         return NextResponse.json({ error: "Missing fields" }, { status: 400 });
-//     }
-//     const created = await AnnouncementModel.create({
-//         title,
-//         date: new Date(date),
-//         description,
-//     });
-//     return NextResponse.json(created, { status: 201 });
-// }
-
 // app/api/events/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
