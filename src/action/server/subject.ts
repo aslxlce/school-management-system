@@ -1,17 +1,17 @@
+// // src/action/server/subject.ts
+
 // "use server";
 
 // import dbConnect from "@/lib/dbConnection";
 // import { TeacherModel } from "@/models/User";
 // import type { IUserTeacher } from "@/types/user";
 
-// export interface ISubjectWithTeachers {
-//     name: string;
-//     teacherNames: string[];
-// }
-
-// export interface PaginatedSubjects {
-//     data: ISubjectWithTeachers[];
-//     totalPages: number;
+// /**
+//  * One row in the subjects list.
+//  */
+// export interface ISubjectRow {
+//     name: string; // subject name (e.g. "Math")
+//     teacherNames: string[]; // ["Alice Doe", "Bob Smith", ...]
 // }
 
 // /**
@@ -20,12 +20,18 @@
 // export async function fetchSubjects(
 //     page: number = 1,
 //     limit: number = 10
-// ): Promise<PaginatedSubjects> {
+// ): Promise<{ data: ISubjectRow[]; totalPages: number }> {
 //     await dbConnect();
 
 //     const skip = (page - 1) * limit;
 
-//     const aggregateResult = await TeacherModel.aggregate([
+//     // Group teachers by subject
+//     type SubjectAggregateRow = {
+//         _id: string;
+//         teachers: { name: string; surname: string }[];
+//     };
+
+//     const aggregateResult = await TeacherModel.aggregate<SubjectAggregateRow>([
 //         {
 //             $group: {
 //                 _id: "$subject",
@@ -39,18 +45,12 @@
 //         { $limit: limit },
 //     ]);
 
-//     type SubjectAggregateRow = {
-//         _id: string;
-//         teachers: { name: string; surname: string }[];
-//     };
-
-//     const casted = aggregateResult as SubjectAggregateRow[];
-
-//     const data: ISubjectWithTeachers[] = casted.map((row) => ({
+//     const data: ISubjectRow[] = aggregateResult.map((row) => ({
 //         name: row._id,
 //         teacherNames: row.teachers.map((t) => `${t.name} ${t.surname}`),
 //     }));
 
+//     // Count total distinct subjects for pagination
 //     const distinctSubjects = await TeacherModel.distinct("subject");
 //     const totalPages = Math.ceil(distinctSubjects.length / limit);
 
@@ -58,32 +58,15 @@
 // }
 
 // /**
-//  * Fetch all teachers that teach a given subject.
+//  * Fetch all teachers who teach a given subject.
 //  */
 // export async function fetchTeachersBySubject(subject: string): Promise<IUserTeacher[]> {
 //     await dbConnect();
 
+//     // Lean teacher docs (array)
 //     const teachersRaw = await TeacherModel.find({ subject }).lean();
 
-//     type TeacherRow = {
-//         _id: string;
-//         username: string;
-//         name: string;
-//         surname: string;
-//         email: string;
-//         phone: string;
-//         address: string;
-//         img?: string;
-//         sex: "male" | "female";
-//         subject: string;
-//         birthday: Date;
-//         gradeLevel: "primary" | "middle" | "high";
-//         schedule?: IUserTeacher["schedule"];
-//     };
-
-//     const casted = teachersRaw as TeacherRow[];
-
-//     const mapped: IUserTeacher[] = casted.map((t) => ({
+//     const mapped: IUserTeacher[] = teachersRaw.map((t) => ({
 //         id: String(t._id),
 //         username: t.username,
 //         name: t.name,
@@ -96,27 +79,45 @@
 //         subject: t.subject,
 //         birthday: t.birthday,
 //         gradeLevel: t.gradeLevel,
-//         schedule: t.schedule,
+//         schedule: t.schedule ?? [],
 //         role: "teacher",
 //     }));
 
 //     return mapped;
 // }
 
-// src/action/server/subject.ts
-
 "use server";
 
 import dbConnect from "@/lib/dbConnection";
 import { TeacherModel } from "@/models/User";
-import type { IUserTeacher } from "@/types/user";
+import type { IUserTeacher, IScheduleEntry } from "@/types/user";
 
 /**
  * One row in the subjects list.
  */
 export interface ISubjectRow {
-    name: string; // subject name (e.g. "Math")
-    teacherNames: string[]; // ["Alice Doe", "Bob Smith", ...]
+    name: string;
+    teacherNames: string[];
+}
+
+/**
+ * Type guard to validate schedule entries without using `any`
+ */
+function isScheduleEntryArray(value: unknown): value is IScheduleEntry[] {
+    return (
+        Array.isArray(value) &&
+        value.every((e) => {
+            return (
+                typeof e === "object" &&
+                e !== null &&
+                typeof (e as Record<string, unknown>).day === "string" &&
+                typeof (e as Record<string, unknown>).startTime === "string" &&
+                typeof (e as Record<string, unknown>).endTime === "string" &&
+                typeof (e as Record<string, unknown>).subject === "string" &&
+                typeof (e as Record<string, unknown>).classId === "string"
+            );
+        })
+    );
 }
 
 /**
@@ -130,7 +131,6 @@ export async function fetchSubjects(
 
     const skip = (page - 1) * limit;
 
-    // Group teachers by subject
     type SubjectAggregateRow = {
         _id: string;
         teachers: { name: string; surname: string }[];
@@ -140,9 +140,7 @@ export async function fetchSubjects(
         {
             $group: {
                 _id: "$subject",
-                teachers: {
-                    $push: { name: "$name", surname: "$surname" },
-                },
+                teachers: { $push: { name: "$name", surname: "$surname" } },
             },
         },
         { $sort: { _id: 1 } },
@@ -155,7 +153,6 @@ export async function fetchSubjects(
         teacherNames: row.teachers.map((t) => `${t.name} ${t.surname}`),
     }));
 
-    // Count total distinct subjects for pagination
     const distinctSubjects = await TeacherModel.distinct("subject");
     const totalPages = Math.ceil(distinctSubjects.length / limit);
 
@@ -168,25 +165,30 @@ export async function fetchSubjects(
 export async function fetchTeachersBySubject(subject: string): Promise<IUserTeacher[]> {
     await dbConnect();
 
-    // Lean teacher docs (array)
     const teachersRaw = await TeacherModel.find({ subject }).lean();
 
-    const mapped: IUserTeacher[] = teachersRaw.map((t) => ({
-        id: String(t._id),
-        username: t.username,
-        name: t.name,
-        surname: t.surname,
-        email: t.email,
-        phone: t.phone,
-        address: t.address,
-        img: t.img,
-        sex: t.sex,
-        subject: t.subject,
-        birthday: t.birthday,
-        gradeLevel: t.gradeLevel,
-        schedule: t.schedule ?? [],
-        role: "teacher",
-    }));
+    const mapped: IUserTeacher[] = teachersRaw.map((t) => {
+        const scheduleValue: unknown = (t as Record<string, unknown>).schedule;
+
+        const schedule: IScheduleEntry[] = isScheduleEntryArray(scheduleValue) ? scheduleValue : [];
+
+        return {
+            id: String(t._id),
+            username: t.username,
+            name: t.name,
+            surname: t.surname,
+            email: t.email,
+            phone: t.phone,
+            address: t.address,
+            img: t.img,
+            sex: t.sex,
+            subject: t.subject,
+            birthday: t.birthday instanceof Date ? t.birthday.toISOString() : String(t.birthday),
+            gradeLevel: t.gradeLevel,
+            schedule,
+            role: "teacher",
+        };
+    });
 
     return mapped;
 }

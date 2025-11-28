@@ -54,7 +54,7 @@ interface FormModalProps {
     table: TableType;
     type: FormType;
     data?: Record<string, unknown>;
-    id?: number;
+    id?: string | number;
 }
 
 export default function FormModal({ table, type, data, id }: FormModalProps) {

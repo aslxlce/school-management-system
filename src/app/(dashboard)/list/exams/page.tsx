@@ -9,7 +9,6 @@
 // import { fetchClasses, fetchClassById, IClass } from "@/action/server/class";
 // import Table from "@/components/Table";
 // import Pagination from "@/components/Pagination";
-// import TableSearch from "@/components/TableSearch";
 // import ExamModal from "@/components/ExamModal";
 // import { getSession } from "@/lib/auth";
 // import { gradeLessonMap } from "@/lib/gradeLessons";
@@ -23,14 +22,9 @@
 // }
 
 // interface PageProps {
-//     // Next 15: searchParams is a Promise
 //     searchParams: Promise<PageSearchParams>;
 // }
 
-// /**
-//  * Extend server IClass locally with optional `teacherIds`
-//  * so we can use them safely in this page.
-//  */
 // interface IClassWithRelations extends IClass {
 //     teacherIds?: { id: string; name?: string; surname?: string }[];
 //     supervisor?: { id: string; name: string; surname: string };
@@ -56,9 +50,7 @@
 //     const currentPage = Number.parseInt(pageParam ?? "1", 10);
 
 //     const session = await getSession();
-//     if (!session) {
-//         redirect("/login");
-//     }
+//     if (!session) redirect("/login");
 
 //     const role = session.role;
 //     const userId = session.id;
@@ -68,57 +60,57 @@
 //     let totalPages = 1;
 
 //     // ─────────────────────────────────────
-//     // ADMIN → paginated list of all classes
+//     // ADMIN → all classes (paginated)
 //     // ─────────────────────────────────────
 //     if (role === "admin") {
-//         const { data, totalPages: totalPagesInitial } = await fetchClasses(currentPage);
+//         const { data, totalPages: tp } = await fetchClasses(currentPage);
 //         classes = data as IClassWithRelations[];
-//         totalPages = totalPagesInitial;
+//         totalPages = tp;
 //     }
+
 //     // ─────────────────────────────────────
-//     // STUDENT & PARENT → only their class
+//     // STUDENT/PARENT → only their class
 //     // ─────────────────────────────────────
 //     else if (role === "student" || role === "parent") {
 //         if (userClassId) {
 //             const cls = await fetchClassById(userClassId);
 //             if (cls) {
-//                 // Map IClassDetail → IClassWithRelations (only the fields we use here)
-//                 const simple: IClassWithRelations = {
-//                     id: cls.id,
-//                     name: cls.name,
-//                     grade: cls.grade,
-//                     supervisor: cls.supervisor
-//                         ? {
-//                               id: cls.supervisor.id,
-//                               name: cls.supervisor.name,
-//                               surname: cls.supervisor.surname,
-//                           }
-//                         : undefined,
-//                     teacherIds: cls.teacherIds.map((t) => ({ id: t.id })),
-//                 };
-//                 classes = [simple];
+//                 classes = [
+//                     {
+//                         id: cls.id,
+//                         name: cls.name,
+//                         grade: cls.grade,
+//                         supervisor: cls.supervisor
+//                             ? {
+//                                   id: cls.supervisor.id,
+//                                   name: cls.supervisor.name,
+//                                   surname: cls.supervisor.surname,
+//                               }
+//                             : undefined,
+//                         teacherIds: cls.teacherIds.map((t) => ({ id: t.id })),
+//                     },
+//                 ];
 //             }
 //         }
-//         totalPages = 1; // only one class
+//         totalPages = 1;
 //     }
+
 //     // ─────────────────────────────────────
-//     // TEACHER → only classes where they teach
+//     // TEACHER → classes they teach
 //     // ─────────────────────────────────────
 //     else if (role === "teacher") {
-//         // No real need for pagination here: just fetch "enough"
-//         const { data } = await fetchClasses(1, 100); // second arg = limit
+//         const { data } = await fetchClasses(1, 100);
 //         const allClasses = data as IClassWithRelations[];
 
-//         classes = userId
-//             ? allClasses.filter((c) =>
-//                   Array.isArray(c.teacherIds) ? c.teacherIds.some((t) => t.id === userId) : false
-//               )
-//             : [];
+//         classes = allClasses.filter((c) =>
+//             Array.isArray(c.teacherIds) ? c.teacherIds.some((t) => t.id === userId) : false
+//         );
 
 //         totalPages = 1;
 //     }
+
 //     // ─────────────────────────────────────
-//     // OTHER ROLES (if any) → no access
+//     // OTHERS → no access
 //     // ─────────────────────────────────────
 //     else {
 //         return (
@@ -132,8 +124,6 @@
 
 //     const renderRow = (cls: IClassWithRelations) => {
 //         const gradeKey = String(cls.grade);
-
-//         // We use gradeLessonMap for subjects shown in the exam modal
 //         const subjectsForClass: string[] = (gradeLessonMap[gradeKey] ?? []).map((s: string) =>
 //             String(s)
 //         );
@@ -149,7 +139,9 @@
 //                         <span className="text-xs text-gray-500">Grade {cls.grade}</span>
 //                     </div>
 //                 </td>
+
 //                 <td className="hidden md:table-cell">{cls.grade}</td>
+
 //                 <td className="hidden lg:table-cell">
 //                     {cls.supervisor ? (
 //                         <Link
@@ -162,9 +154,9 @@
 //                         "N/A"
 //                     )}
 //                 </td>
+
 //                 <td>
 //                     <div className="flex items-center gap-2">
-//                         {/* Everyone can open the modal; only admins can add exams inside it */}
 //                         <ExamModal
 //                             classId={cls.id}
 //                             className={cls.name}
@@ -172,7 +164,7 @@
 //                             subjects={subjectsForClass}
 //                             canCreateExams={canCreateExams}
 //                         />
-//                         {/* Optional: link to full class detail page */}
+
 //                         <Link
 //                             href={`/list/classes/${cls.id}`}
 //                             className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--sky-color)]"
@@ -187,19 +179,9 @@
 
 //     return (
 //         <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
+//             {/* Header — CLEANED */}
 //             <div className="flex justify-between items-center mb-4">
-//                 <h1 className="hidden md:block text-lg font-semibold">Exam Schedules</h1>
-//                 <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-//                     <TableSearch />
-//                     <div className="flex items-center gap-4 self-end">
-//                         <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--yelloww-color)]">
-//                             <Image src="/filter.png" alt="Filter" width={14} height={14} />
-//                         </button>
-//                         <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--yelloww-color)]">
-//                             <Image src="/sort.png" alt="Sort" width={14} height={14} />
-//                         </button>
-//                     </div>
-//                 </div>
+//                 <h1 className="text-lg font-semibold">Exam Schedules</h1>
 //             </div>
 
 //             <Table<IClassWithRelations> columns={columns} renderRow={renderRow} data={classes} />
@@ -217,12 +199,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { fetchClasses, fetchClassById, IClass } from "@/action/server/class";
+import { fetchClasses, fetchClassById } from "@/action/server/class";
 import Table from "@/components/Table";
 import Pagination from "@/components/Pagination";
 import ExamModal from "@/components/ExamModal";
 import { getSession } from "@/lib/auth";
 import { gradeLessonMap } from "@/lib/gradeLessons";
+
+import type { IClassWithRelations } from "@/types/class";
+import type { Grade } from "@/types/user";
 
 // ─────────────────────────────────────────────
 // Types
@@ -234,11 +219,6 @@ interface PageSearchParams {
 
 interface PageProps {
     searchParams: Promise<PageSearchParams>;
-}
-
-interface IClassWithRelations extends IClass {
-    teacherIds?: { id: string; name?: string; surname?: string }[];
-    supervisor?: { id: string; name: string; surname: string };
 }
 
 const columns = [
@@ -275,6 +255,7 @@ export default async function ExamListPage({ searchParams }: PageProps) {
     // ─────────────────────────────────────
     if (role === "admin") {
         const { data, totalPages: tp } = await fetchClasses(currentPage);
+        // For now we trust the server action to already conform to IClassWithRelations
         classes = data as IClassWithRelations[];
         totalPages = tp;
     }
@@ -286,21 +267,47 @@ export default async function ExamListPage({ searchParams }: PageProps) {
         if (userClassId) {
             const cls = await fetchClassById(userClassId);
             if (cls) {
-                classes = [
-                    {
-                        id: cls.id,
-                        name: cls.name,
-                        grade: cls.grade,
-                        supervisor: cls.supervisor
-                            ? {
-                                  id: cls.supervisor.id,
-                                  name: cls.supervisor.name,
-                                  surname: cls.supervisor.surname,
-                              }
-                            : undefined,
-                        teacherIds: cls.teacherIds.map((t) => ({ id: t.id })),
-                    },
-                ];
+                // Map whatever fetchClassById returns into our canonical view type
+                const mapped: IClassWithRelations = {
+                    id: cls.id,
+                    name: cls.name,
+                    // cls.grade is currently string/number → cast into our Grade type
+                    grade: cls.grade as Grade,
+
+                    // server returns populated teachers (IUserTeacher[]) → map to IDs
+                    teacherIds: Array.isArray(cls.teacherIds)
+                        ? cls.teacherIds.map((t) => t.id)
+                        : undefined,
+
+                    // server returns populated students (IUserStudent[]) → map to IDs
+                    studentIds: Array.isArray(cls.studentIds)
+                        ? cls.studentIds.map((s) => s.id)
+                        : undefined,
+
+                    supervisorId: cls.supervisor ? cls.supervisor.id : undefined,
+                    lessons: cls.lessons,
+                    schedule: cls.schedule,
+
+                    // populated supervisor object for this page
+                    supervisor: cls.supervisor
+                        ? {
+                              id: cls.supervisor.id,
+                              name: cls.supervisor.name,
+                              surname: cls.supervisor.surname,
+                          }
+                        : undefined,
+
+                    // optional populated teachers array for view usage elsewhere
+                    teachers: Array.isArray(cls.teacherIds)
+                        ? cls.teacherIds.map((t) => ({
+                              id: t.id,
+                              name: t.name,
+                              surname: t.surname,
+                          }))
+                        : undefined,
+                };
+
+                classes = [mapped];
             }
         }
         totalPages = 1;
@@ -313,8 +320,9 @@ export default async function ExamListPage({ searchParams }: PageProps) {
         const { data } = await fetchClasses(1, 100);
         const allClasses = data as IClassWithRelations[];
 
+        // In the canonical shape, teacherIds is string[]
         classes = allClasses.filter((c) =>
-            Array.isArray(c.teacherIds) ? c.teacherIds.some((t) => t.id === userId) : false
+            Array.isArray(c.teacherIds) ? c.teacherIds.includes(userId) : false
         );
 
         totalPages = 1;
@@ -390,7 +398,7 @@ export default async function ExamListPage({ searchParams }: PageProps) {
 
     return (
         <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
-            {/* Header — CLEANED */}
+            {/* Header */}
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-lg font-semibold">Exam Schedules</h1>
             </div>

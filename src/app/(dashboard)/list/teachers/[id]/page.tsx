@@ -176,13 +176,17 @@ import BigCalendar from "@/components/BigCalendar";
 import FormModal from "@/components/FormModal";
 import { fetchTeacherById } from "@/action/server/teacher";
 
+// In Next 15, `params` is a Promise
 interface PageProps {
-    params: { id: string };
+    params: Promise<{ id: string }>;
 }
 
-export default async function SingleTeacherPage({ params }: PageProps) {
-    // 1) Fetch teacher data
-    const teacher = await fetchTeacherById(params.id);
+export default async function SingleTeacherPage(props: PageProps) {
+    // 1) Await params and get id
+    const { id } = await props.params;
+
+    // 2) Fetch teacher data
+    const teacher = await fetchTeacherById(id);
     if (!teacher) notFound();
 
     return (
@@ -260,19 +264,19 @@ export default async function SingleTeacherPage({ params }: PageProps) {
                     <h2 className="text-xl font-semibold">Shortcuts</h2>
                     <div className="mt-4 flex gap-4 flex-wrap text-xs text-gray-500">
                         <Link
-                            href={`/dashboard/list/teachers/${params.id}/classes`}
+                            href={`/dashboard/list/teachers/${id}/classes`}
                             className="p-3 rounded-md bg-[var(--lightSkye-color)]"
                         >
                             Classes
                         </Link>
                         <Link
-                            href={`/dashboard/list/teachers/${params.id}/students`}
+                            href={`/dashboard/list/teachers/${id}/students`}
                             className="p-3 rounded-md bg-[var(--purpleeLight-color)]"
                         >
                             Students
                         </Link>
                         <Link
-                            href={`/dashboard/list/teachers/${params.id}/lessons`}
+                            href={`/dashboard/list/teachers/${id}/lessons`}
                             className="p-3 rounded-md bg-[var(--yellowwLight-color)]"
                         >
                             Lessons

@@ -25,13 +25,16 @@
 //             return NextResponse.json({ message: "Class not found" }, { status: 404 });
 //         }
 
-//         const currentStudentIds = (cls.studentIds ?? []).map((id: unknown) => String(id));
-//         const newStudentIds = (body.studentIds ?? []).map((id) => id.trim());
+//         // Make sure these are strongly typed as string[]
+//         const currentStudentIds: string[] = (cls.studentIds ?? []).map((id: unknown) => String(id));
+//         const newStudentIds: string[] = (body.studentIds ?? []).map((id: string) => id.trim());
 
 //         // 2) Update students' classId
 
 //         // students removed from the class
-//         const removedStudentIds = currentStudentIds.filter((id) => !newStudentIds.includes(id));
+//         const removedStudentIds: string[] = currentStudentIds.filter(
+//             (id: string) => !newStudentIds.includes(id)
+//         );
 //         if (removedStudentIds.length > 0) {
 //             await StudentModel.updateMany(
 //                 { _id: { $in: removedStudentIds } },
@@ -40,7 +43,9 @@
 //         }
 
 //         // students newly added to the class
-//         const addedStudentIds = newStudentIds.filter((id) => !currentStudentIds.includes(id));
+//         const addedStudentIds: string[] = newStudentIds.filter(
+//             (id: string) => !currentStudentIds.includes(id)
+//         );
 //         if (addedStudentIds.length > 0) {
 //             await StudentModel.updateMany({ _id: { $in: addedStudentIds } }, { $set: { classId } });
 //         }
@@ -86,10 +91,13 @@ interface ClassUpdateBody {
     studentIds?: string[];
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+// Next 15: context.params is a Promise
+export async function PUT(req: NextRequest, context: { params: Promise<{ id: string }> }) {
     try {
         await dbConnect();
-        const classId = params.id;
+
+        const { id } = await context.params;
+        const classId = id;
 
         const body = (await req.json()) as ClassUpdateBody;
 
@@ -100,14 +108,16 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         }
 
         // Make sure these are strongly typed as string[]
-        const currentStudentIds: string[] = (cls.studentIds ?? []).map((id: unknown) => String(id));
-        const newStudentIds: string[] = (body.studentIds ?? []).map((id: string) => id.trim());
+        const currentStudentIds: string[] = (cls.studentIds ?? []).map((sid: unknown) =>
+            String(sid)
+        );
+        const newStudentIds: string[] = (body.studentIds ?? []).map((id) => id.trim());
 
         // 2) Update students' classId
 
         // students removed from the class
         const removedStudentIds: string[] = currentStudentIds.filter(
-            (id: string) => !newStudentIds.includes(id)
+            (id) => !newStudentIds.includes(id)
         );
         if (removedStudentIds.length > 0) {
             await StudentModel.updateMany(
@@ -118,7 +128,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
         // students newly added to the class
         const addedStudentIds: string[] = newStudentIds.filter(
-            (id: string) => !currentStudentIds.includes(id)
+            (id) => !currentStudentIds.includes(id)
         );
         if (addedStudentIds.length > 0) {
             await StudentModel.updateMany({ _id: { $in: addedStudentIds } }, { $set: { classId } });
@@ -127,6 +137,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         // 3) Update the class document itself
         if (typeof body.name === "string") cls.name = body.name.trim();
         if (typeof body.grade === "string") cls.grade = body.grade.trim();
+
         if (typeof body.supervisor === "string" && body.supervisor.trim()) {
             cls.supervisor = body.supervisor.trim();
         } else if (body.supervisor === "") {

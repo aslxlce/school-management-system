@@ -1,3 +1,4 @@
+// // src/action/server/class.ts
 // import dbConnect from "@/lib/dbConnection";
 // import ClassModel from "@/models/Class";
 // import { Types, Document } from "mongoose";
@@ -58,6 +59,7 @@
 //     name: string;
 //     grade: string;
 //     supervisor?: { id: string; name: string; surname: string };
+//     // 🔥 now available for teacher filtering on list pages
 //     teacherIds?: { id: string }[];
 // }
 
@@ -100,9 +102,7 @@
 //               }
 //             : undefined,
 //         teacherIds: Array.isArray(cls.teacherIds)
-//             ? cls.teacherIds.map((t) => ({
-//                   id: t._id.toString(),
-//               }))
+//             ? cls.teacherIds.map((t) => ({ id: t._id.toString() }))
 //             : [],
 //     }));
 
@@ -113,9 +113,9 @@
 //     await dbConnect();
 
 //     const cls = await ClassModel.findById(id)
-//         .populate<RawTeacher>("supervisor")
-//         .populate<RawTeacher[]>("teacherIds")
-//         .populate<RawStudent[]>("studentIds")
+//         .populate<RawClassDetail>("supervisor")
+//         .populate<RawClassDetail[]>("teacherIds")
+//         .populate<RawClassDetail[]>("studentIds")
 //         .lean<RawClassDetail>();
 
 //     if (!cls) return null;
@@ -184,7 +184,7 @@
 import dbConnect from "@/lib/dbConnection";
 import ClassModel from "@/models/Class";
 import { Types, Document } from "mongoose";
-import { IUserTeacher, IUserStudent, IScheduleEntry } from "@/types/user";
+import type { IUserTeacher, IUserStudent, IScheduleEntry } from "@/types/user";
 import { Grade, GradeLevel } from "@/models/User";
 
 interface RawTeacher {
@@ -236,15 +236,21 @@ interface RawClassDetail extends Document {
     }>;
 }
 
-export interface IClass {
+/**
+ * Lightweight class info for listing page (server-side only)
+ */
+export interface IClassListItem {
     id: string;
     name: string;
     grade: string;
     supervisor?: { id: string; name: string; surname: string };
-    // 🔥 now available for teacher filtering on list pages
+    // used to filter classes where a teacher is assigned
     teacherIds?: { id: string }[];
 }
 
+/**
+ * Full class details for the class detail page
+ */
 export interface IClassDetail {
     id: string;
     name: string;
@@ -259,7 +265,7 @@ export interface IClassDetail {
 export const fetchClasses = async (
     page = 1,
     limit = 5
-): Promise<{ data: IClass[]; totalPages: number }> => {
+): Promise<{ data: IClassListItem[]; totalPages: number }> => {
     await dbConnect();
     const skip = (page - 1) * limit;
     const total = await ClassModel.countDocuments();
@@ -272,7 +278,7 @@ export const fetchClasses = async (
         .populate<{ teacherIds: RawTeacher[] }>("teacherIds", "_id")
         .lean<RawClassDetail[]>();
 
-    const data: IClass[] = raw.map((cls) => ({
+    const data: IClassListItem[] = raw.map((cls) => ({
         id: cls._id.toString(),
         name: cls.name,
         grade: cls.grade,
@@ -295,9 +301,9 @@ export const fetchClassById = async (id: string): Promise<IClassDetail | null> =
     await dbConnect();
 
     const cls = await ClassModel.findById(id)
-        .populate<RawClassDetail>("supervisor")
-        .populate<RawClassDetail[]>("teacherIds")
-        .populate<RawClassDetail[]>("studentIds")
+        .populate<RawTeacher>("supervisor")
+        .populate<RawTeacher[]>("teacherIds")
+        .populate<RawStudent[]>("studentIds")
         .lean<RawClassDetail>();
 
     if (!cls) return null;
@@ -312,7 +318,8 @@ export const fetchClassById = async (id: string): Promise<IClassDetail | null> =
         address: t.address,
         img: t.img ?? "",
         subject: t.subject,
-        birthday: t.birthday,
+        // IUserTeacher.birthday is string (ISO) in types/user.d.ts
+        birthday: t.birthday.toISOString(),
         gradeLevel: t.gradeLevel,
         sex: t.sex,
         role: "teacher",
@@ -331,7 +338,8 @@ export const fetchClassById = async (id: string): Promise<IClassDetail | null> =
         grade: s.grade as Grade,
         classId: s.classId?.toString(),
         parentId: s.parentId?.toString(),
-        birthday: s.birthday,
+        // IUserStudent.birthday is string (ISO) in types/user.d.ts
+        birthday: s.birthday.toISOString(),
         sex: s.sex,
         role: "student",
         schedule: [],
@@ -344,7 +352,7 @@ export const fetchClassById = async (id: string): Promise<IClassDetail | null> =
         endTime: e.endTime,
         subject: e.subject,
         classId: e.classId.toString(),
-        teacherId: e.teacherId?.toString() ?? "",
+        ...(e.teacherId ? { teacherId: e.teacherId.toString() } : {}),
     }));
 
     return {

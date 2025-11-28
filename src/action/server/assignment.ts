@@ -37,7 +37,7 @@
 // export interface CreateAssignmentInput {
 //     title: string;
 //     description: string;
-//     dueDate: string; // ISO string, e.g. "2025-11-27"
+//     dueDate: string; // ISO, e.g. "2025-11-27"
 //     classId: string;
 //     teacherId: string;
 // }
@@ -63,7 +63,8 @@
 
 //     const dueDate = new Date(input.dueDate);
 
-//     const doc = await AssignmentModel.create({
+//     // 1) Create the document
+//     const created = await AssignmentModel.create({
 //         title: input.title,
 //         description: input.description,
 //         dueDate,
@@ -71,9 +72,15 @@
 //         teacherId: new Types.ObjectId(input.teacherId),
 //     });
 
-//     const populated = await doc
+//     // 2) Re-fetch it with populate + lean, typed as RawAssignment
+//     const populated = await AssignmentModel.findById(created._id)
 //         .populate<{ teacherId: RawTeacherForAssignment }>("teacherId", "name surname")
-//         .then((d) => d.toObject() as RawAssignment);
+//         .lean<RawAssignment>()
+//         .exec();
+
+//     if (!populated) {
+//         throw new Error("Failed to load created assignment");
+//     }
 
 //     return mapAssignment(populated);
 // }
@@ -84,10 +91,13 @@
 // export async function fetchAssignmentsByClass(classId: string): Promise<IAssignment[]> {
 //     await dbConnect();
 
-//     const docs = await AssignmentModel.find({ classId: new Types.ObjectId(classId) })
+//     const docs = await AssignmentModel.find({
+//         classId: new Types.ObjectId(classId),
+//     })
 //         .sort({ dueDate: 1 })
 //         .populate<{ teacherId: RawTeacherForAssignment }>("teacherId", "name surname")
-//         .lean<RawAssignment[]>();
+//         .lean<RawAssignment[]>()
+//         .exec();
 
 //     return docs.map(mapAssignment);
 // }
@@ -97,6 +107,7 @@ import dbConnect from "@/lib/dbConnection";
 import AssignmentModel from "@/models/Assignment";
 import { Types } from "mongoose";
 
+// Raw shapes for populated docs
 interface RawTeacherForAssignment {
     _id: Types.ObjectId;
     name: string;
@@ -114,29 +125,8 @@ interface RawAssignment {
     updatedAt: Date;
 }
 
-export interface IAssignment {
-    id: string;
-    title: string;
-    description: string;
-    dueDate: string; // ISO
-    classId: string;
-    teacher: {
-        id: string;
-        name: string;
-        surname: string;
-    };
-    createdAt: string;
-}
-
-export interface CreateAssignmentInput {
-    title: string;
-    description: string;
-    dueDate: string; // ISO, e.g. "2025-11-27"
-    classId: string;
-    teacherId: string;
-}
-
-function mapAssignment(raw: RawAssignment): IAssignment {
+// map raw mongoose document → DTO IAssignment (DATE = string)
+function mapAssignment(raw: RawAssignment): IAssignment<string> {
     return {
         id: raw._id.toString(),
         title: raw.title,
@@ -152,12 +142,12 @@ function mapAssignment(raw: RawAssignment): IAssignment {
     };
 }
 
+// Create a new assignment
 export async function createAssignment(input: CreateAssignmentInput): Promise<IAssignment> {
     await dbConnect();
 
     const dueDate = new Date(input.dueDate);
 
-    // 1) Create the document
     const created = await AssignmentModel.create({
         title: input.title,
         description: input.description,
@@ -166,7 +156,6 @@ export async function createAssignment(input: CreateAssignmentInput): Promise<IA
         teacherId: new Types.ObjectId(input.teacherId),
     });
 
-    // 2) Re-fetch it with populate + lean, typed as RawAssignment
     const populated = await AssignmentModel.findById(created._id)
         .populate<{ teacherId: RawTeacherForAssignment }>("teacherId", "name surname")
         .lean<RawAssignment>()

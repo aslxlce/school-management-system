@@ -7,11 +7,10 @@
 
 // import Pagination from "@/components/Pagination";
 // import Table from "@/components/Table";
-// import TableSearch from "@/components/TableSearch";
 // import { getSession } from "@/lib/auth";
 
-// import { fetchAssignmentsByClass, IAssignment } from "@/action/server/assignment";
-// import { fetchClasses, fetchClassById, IClass } from "@/action/server/class";
+// import { fetchAssignmentsByClass } from "@/action/server/assignment";
+// import { fetchClassById, fetchClasses } from "@/action/server/class";
 
 // import AssignmentViewModal from "@/components/AssignmentViewModal";
 // import AssignmentTeacherModal from "@/components/AssignmentTeacherModal";
@@ -28,10 +27,24 @@
 //     page?: string;
 // }
 // interface PageProps {
+//     // Next 15: searchParams is a Promise
 //     searchParams: Promise<PageSearchParams>;
 // }
 
-// interface IClassWithTeacherIds extends IClass {
+// /**
+//  * Local view type for classes on this page.
+//  * We do NOT import IClass from server; instead we mirror the shape
+//  * that `fetchClasses` actually returns for list views.
+//  */
+// interface ClassListItem {
+//     id: string;
+//     name: string;
+//     grade: string;
+//     supervisor?: {
+//         id: string;
+//         name: string;
+//         surname: string;
+//     };
 //     teacherIds?: { id: string }[];
 // }
 
@@ -183,26 +196,17 @@
 //         return (
 //             <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
 //                 {/* Top  */}
-//                 <div className="flex justify-between items-center">
+//                 <div className="flex justify-between items-center mb-4">
 //                     <h1 className="hidden md:block text-lg font-semibold">{heading}</h1>
-//                     <div className="flex flex-col md:flex-row gap-4  w-full md:w-auto">
-//                         <TableSearch />
-//                         <div className="flex items-center gap-4 self-end">
-//                             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--yelloww-color)]">
-//                                 <Image src="/filter.png" alt="" width={14} height={14} />
-//                             </button>
-//                             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--yelloww-color)]">
-//                                 <Image src="/sort.png" alt="" width={14} height={14} />
-//                             </button>
-//                         </div>
-//                     </div>
 //                 </div>
+
 //                 {/* List  */}
 //                 <Table<AssignmentRow>
 //                     columns={columns}
 //                     renderRow={renderStudentParentRow}
 //                     data={rows}
 //                 />
+
 //                 {/* Pagination  */}
 //                 <Pagination currentPage={currentPage} totalPages={1} />
 //             </div>
@@ -214,14 +218,12 @@
 //     // ─────────────────────────────────────
 //     if (role === "teacher" || role === "admin") {
 //         const { data } = await fetchClasses(currentPage, 100);
-//         const allClasses = data as IClassWithTeacherIds[];
+//         const allClasses = data as ClassListItem[];
 
-//         let visibleClasses: IClassWithTeacherIds[];
+//         let visibleClasses: ClassListItem[];
 //         if (role === "admin") {
-//             // Admin sees all classes
 //             visibleClasses = allClasses;
 //         } else {
-//             // Teacher sees only classes they teach
 //             visibleClasses = allClasses.filter((c) =>
 //                 Array.isArray(c.teacherIds) ? c.teacherIds.some((t) => t.id === userId) : false
 //             );
@@ -230,19 +232,8 @@
 //         return (
 //             <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
 //                 {/* Top  */}
-//                 <div className="flex justify-between items-center">
+//                 <div className="flex justify-between items-center mb-4">
 //                     <h1 className="hidden md:block text-lg font-semibold">Assignments</h1>
-//                     <div className="flex flex-col md:flex-row gap-4  w-full md:w-auto">
-//                         <TableSearch />
-//                         <div className="flex items-center gap-4 self-end">
-//                             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--yelloww-color)]">
-//                                 <Image src="/filter.png" alt="" width={14} height={14} />
-//                             </button>
-//                             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--yelloww-color)]">
-//                                 <Image src="/sort.png" alt="" width={14} height={14} />
-//                             </button>
-//                         </div>
-//                     </div>
 //                 </div>
 
 //                 {/* List of classes the teacher/admin can assign to */}
@@ -331,8 +322,8 @@ import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import { getSession } from "@/lib/auth";
 
-import { fetchAssignmentsByClass, IAssignment } from "@/action/server/assignment";
-import { fetchClasses, fetchClassById, IClass } from "@/action/server/class";
+import { fetchAssignmentsByClass } from "@/action/server/assignment";
+import { fetchClassById, fetchClasses } from "@/action/server/class";
 
 import AssignmentViewModal from "@/components/AssignmentViewModal";
 import AssignmentTeacherModal from "@/components/AssignmentTeacherModal";
@@ -341,18 +332,28 @@ import dbConnect from "@/lib/dbConnection";
 import { StudentModel, ParentModel } from "@/models/User";
 import { Types } from "mongoose";
 
-// ─────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────
-
 interface PageSearchParams {
     page?: string;
 }
 interface PageProps {
+    // Next 15: searchParams is a Promise
     searchParams: Promise<PageSearchParams>;
 }
 
-interface IClassWithTeacherIds extends IClass {
+/**
+ * Local view type for classes on this page.
+ * We do NOT import IClass from server; instead we mirror the shape
+ * that `fetchClasses` actually returns for list views.
+ */
+interface ClassListItem {
+    id: string;
+    name: string;
+    grade: string;
+    supervisor?: {
+        id: string;
+        name: string;
+        surname: string;
+    };
     teacherIds?: { id: string }[];
 }
 
@@ -526,9 +527,9 @@ const AssignmentListPage = async ({ searchParams }: PageProps) => {
     // ─────────────────────────────────────
     if (role === "teacher" || role === "admin") {
         const { data } = await fetchClasses(currentPage, 100);
-        const allClasses = data as IClassWithTeacherIds[];
+        const allClasses = data as ClassListItem[];
 
-        let visibleClasses: IClassWithTeacherIds[];
+        let visibleClasses: ClassListItem[];
         if (role === "admin") {
             visibleClasses = allClasses;
         } else {

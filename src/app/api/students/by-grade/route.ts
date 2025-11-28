@@ -43,6 +43,22 @@ export async function GET(req: NextRequest) {
             )
             .lean();
 
+        // const payload = students.map((s) => ({
+        //     id: String(s._id),
+        //     username: s.username ?? "",
+        //     name: s.name,
+        //     surname: s.surname,
+        //     email: s.email,
+        //     img: s.img,
+        //     phone: s.phone,
+        //     grade: s.grade,
+        //     classId: s.classId ?? "",
+        //     address: s.address,
+        //     parentId: s.parentId ? String(s.parentId) : undefined,
+        //     birthday: s.birthday,
+        //     sex: s.sex,
+        // }));
+
         const payload = students.map((s) => ({
             id: String(s._id),
             username: s.username ?? "",
@@ -55,7 +71,7 @@ export async function GET(req: NextRequest) {
             classId: s.classId ?? "",
             address: s.address,
             parentId: s.parentId ? String(s.parentId) : undefined,
-            birthday: s.birthday,
+            birthday: s.birthday.toISOString(),
             sex: s.sex,
         }));
 
