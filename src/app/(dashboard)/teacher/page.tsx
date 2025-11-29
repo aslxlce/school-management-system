@@ -1,16 +1,14 @@
 // // app/dashboard/teacher/page.tsx
 
 // import { getSession } from "@/lib/auth";
-// import { fetchClasses, fetchClassById, IClass } from "@/action/server/class";
+// import { fetchClasses, fetchClassById } from "@/action/server/class";
 // import ClassScheduleSection, {
 //     IScheduleEntry as ClassScheduleEntry,
 // } from "@/components/ClassScheduleSection";
 // import EventCalendar from "@/components/EventCalendar";
 // import Announcements from "@/components/Announcements";
 
-// interface IClassWithTeacherIds extends IClass {
-//     teacherIds?: { id: string }[];
-// }
+// import type { IClass } from "@/types/class";
 
 // export default async function TeacherPage() {
 //     const session = await getSession();
@@ -22,13 +20,13 @@
 //     let schedule: ClassScheduleEntry[] = [];
 
 //     if (isTeacher && teacherId) {
-//         // 1) Fetch "all" classes with teacherIds populated
+//         // 1) Fetch "all" classes
 //         const { data } = await fetchClasses(1, 100); // 2nd arg is limit
-//         const allClasses = data as IClassWithTeacherIds[];
+//         const allClasses = data as IClass[];
 
 //         // 2) Keep only classes where this teacher is assigned
 //         const teacherClasses = allClasses.filter((cls) =>
-//             Array.isArray(cls.teacherIds) ? cls.teacherIds.some((t) => t.id === teacherId) : false
+//             Array.isArray(cls.teacherIds) ? cls.teacherIds.includes(teacherId) : false
 //         );
 
 //         // 3) For each of those classes, load full detail (including schedule)
@@ -107,28 +105,27 @@ export default async function TeacherPage() {
     let schedule: ClassScheduleEntry[] = [];
 
     if (isTeacher && teacherId) {
-        // 1) Fetch "all" classes
-        const { data } = await fetchClasses(1, 100); // 2nd arg is limit
+        // 1) Fetch all classes (lightweight: id, name, grade)
+        const { data } = await fetchClasses(1, 100);
         const allClasses = data as IClass[];
 
-        // 2) Keep only classes where this teacher is assigned
-        const teacherClasses = allClasses.filter((cls) =>
-            Array.isArray(cls.teacherIds) ? cls.teacherIds.includes(teacherId) : false
-        );
+        // 2) Load full details for each class (includes schedule & teacherIds)
+        const detailedClasses = (await Promise.all(
+            allClasses.map((cls) => fetchClassById(cls.id))
+        )) as (IClass | null)[];
 
-        // 3) For each of those classes, load full detail (including schedule)
-        const details = await Promise.all(teacherClasses.map((cls) => fetchClassById(cls.id)));
-
-        // 4) Aggregate schedule entries where teacherId matches this teacher
+        // 3) Aggregate schedule entries where teacherId matches this teacher
         const aggregated: ClassScheduleEntry[] = [];
-        for (const cls of details) {
-            if (!cls || !Array.isArray(cls.schedule)) continue;
 
-            const filtered = cls.schedule.filter(
-                (entry) => entry.teacherId === teacherId
-            ) as ClassScheduleEntry[];
+        for (const cls of detailedClasses) {
+            if (!cls) continue;
 
-            aggregated.push(...filtered);
+            const classSchedule = cls.schedule as ClassScheduleEntry[] | undefined;
+            if (!Array.isArray(classSchedule)) continue;
+
+            const teacherEntries = classSchedule.filter((entry) => entry.teacherId === teacherId);
+
+            aggregated.push(...teacherEntries);
         }
 
         schedule = aggregated;
@@ -151,10 +148,8 @@ export default async function TeacherPage() {
                         No schedule has been defined for this teacher yet.
                     </p>
                 ) : (
-                    // We reuse ClassScheduleSection in read-only mode.
-                    // classId is not used when readOnly is true, so we can pass any string.
                     <ClassScheduleSection
-                        classId="teacher-schedule"
+                        classId="teacher-schedule" // readOnly: classId not used
                         initialSchedule={schedule}
                         readOnly
                     />
