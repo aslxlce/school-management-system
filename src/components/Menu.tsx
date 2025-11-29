@@ -36,20 +36,15 @@
 //                 icon: "/subject.png",
 //                 label: "Subjects",
 //                 href: "/list/subjects",
-//                 visible: ["admin", "teacher", "student", "parent"],
+//                 visible: ["admin"],
 //             },
 //             {
 //                 icon: "/class.png",
 //                 label: "Classes",
 //                 href: "/list/classes",
-//                 visible: ["admin", "teacher", "student", "parent"],
+//                 visible: ["admin", "teacher"],
 //             },
-//             {
-//                 icon: "/lesson.png",
-//                 label: "Lessons",
-//                 href: "/list/lessons",
-//                 visible: ["admin", "teacher", "student", "parent"],
-//             },
+
 //             {
 //                 icon: "/exam.png",
 //                 label: "Exams",
@@ -68,12 +63,7 @@
 //                 href: "/list/results",
 //                 visible: ["admin", "teacher", "student", "parent"],
 //             },
-//             {
-//                 icon: "/attendance.png",
-//                 label: "Attendance",
-//                 href: "/list/attendance",
-//                 visible: ["admin", "teacher", "student", "parent"],
-//             },
+
 //             {
 //                 icon: "/calendar.png",
 //                 label: "Events",
@@ -92,21 +82,9 @@
 //         title: "OTHER",
 //         items: [
 //             {
-//                 icon: "/profile.png",
-//                 label: "Profile",
-//                 href: "/profile",
-//                 visible: ["admin", "teacher", "student", "parent"],
-//             },
-//             {
-//                 icon: "/setting.png",
-//                 label: "Settings",
-//                 href: "/settings",
-//                 visible: ["admin", "teacher", "student", "parent"],
-//             },
-//             {
 //                 icon: "/logout.png",
 //                 label: "Logout",
-//                 href: "#", // keep as "#" since action handles sign-out
+//                 href: "#", // action handles sign-out
 //                 visible: ["admin", "teacher", "student", "parent"],
 //                 action: () => signOut({ callbackUrl: "/" }),
 //             },
@@ -127,24 +105,32 @@
 //                     </span>
 //                     {group.items
 //                         .filter((item) => item.visible.includes(userRole))
-//                         .map((item) =>
-//                             item.label === "Logout" ? (
-//                                 <button
-//                                     key={item.label}
-//                                     onClick={item.action}
-//                                     className="flex item-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-md hover:bg-[var(--lightSkye-color)]"
-//                                 >
-//                                     <Image
-//                                         src={item.icon}
-//                                         alt={item.label}
-//                                         width={20}
-//                                         height={20}
-//                                     />
-//                                     <span className="hidden lg:block">{item.label}</span>
-//                                 </button>
-//                             ) : (
+//                         .map((item) => {
+//                             // Determine target href; override Home based on role
+//                             const targetHref = item.label === "Home" ? `/${userRole}` : item.href;
+
+//                             // Logout uses a button with action
+//                             if (item.label === "Logout") {
+//                                 return (
+//                                     <button
+//                                         key={item.label}
+//                                         onClick={item.action}
+//                                         className="flex item-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-md hover:bg-[var(--lightSkye-color)]"
+//                                     >
+//                                         <Image
+//                                             src={item.icon}
+//                                             alt={item.label}
+//                                             width={20}
+//                                             height={20}
+//                                         />
+//                                         <span className="hidden lg:block">{item.label}</span>
+//                                     </button>
+//                                 );
+//                             }
+
+//                             return (
 //                                 <Link
-//                                     href={item.href}
+//                                     href={targetHref}
 //                                     key={item.label}
 //                                     className="flex item-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-md hover:bg-[var(--lightSkye-color)]"
 //                                 >
@@ -156,8 +142,8 @@
 //                                     />
 //                                     <span className="hidden lg:block">{item.label}</span>
 //                                 </Link>
-//                             )
-//                         )}
+//                             );
+//                         })}
 //                 </div>
 //             ))}
 //         </div>
@@ -172,7 +158,22 @@ import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 
-const menuItems = [
+type Role = "admin" | "teacher" | "student" | "parent";
+
+interface MenuItem {
+    icon: string;
+    label: string;
+    href: string;
+    visible: Role[];
+    action?: () => void; // Only Logout uses this
+}
+
+interface MenuGroup {
+    title: string;
+    items: MenuItem[];
+}
+
+const menuItems: MenuGroup[] = [
     {
         title: "MENU",
         items: [
@@ -204,19 +205,13 @@ const menuItems = [
                 icon: "/subject.png",
                 label: "Subjects",
                 href: "/list/subjects",
-                visible: ["admin", "teacher", "student", "parent"],
+                visible: ["admin"],
             },
             {
                 icon: "/class.png",
                 label: "Classes",
                 href: "/list/classes",
-                visible: ["admin", "teacher", "student", "parent"],
-            },
-            {
-                icon: "/lesson.png",
-                label: "Lessons",
-                href: "/list/lessons",
-                visible: ["admin", "teacher", "student", "parent"],
+                visible: ["admin", "teacher"],
             },
             {
                 icon: "/exam.png",
@@ -237,12 +232,6 @@ const menuItems = [
                 visible: ["admin", "teacher", "student", "parent"],
             },
             {
-                icon: "/attendance.png",
-                label: "Attendance",
-                href: "/list/attendance",
-                visible: ["admin", "teacher", "student", "parent"],
-            },
-            {
                 icon: "/calendar.png",
                 label: "Events",
                 href: "/list/events",
@@ -260,21 +249,9 @@ const menuItems = [
         title: "OTHER",
         items: [
             {
-                icon: "/profile.png",
-                label: "Profile",
-                href: "/profile",
-                visible: ["admin", "teacher", "student", "parent"],
-            },
-            {
-                icon: "/setting.png",
-                label: "Settings",
-                href: "/settings",
-                visible: ["admin", "teacher", "student", "parent"],
-            },
-            {
                 icon: "/logout.png",
                 label: "Logout",
-                href: "#", // action handles sign-out
+                href: "#",
                 visible: ["admin", "teacher", "student", "parent"],
                 action: () => signOut({ callbackUrl: "/" }),
             },
@@ -284,7 +261,7 @@ const menuItems = [
 
 const Menu = () => {
     const { data: session } = useSession();
-    const userRole = session?.user?.role || "student";
+    const userRole: Role = (session?.user?.role as Role) || "student";
 
     return (
         <div className="mt-4 text-sm">
@@ -293,19 +270,18 @@ const Menu = () => {
                     <span className="hidden lg:block text-gray-400 font-light my-4">
                         {group.title}
                     </span>
+
                     {group.items
                         .filter((item) => item.visible.includes(userRole))
                         .map((item) => {
-                            // Determine target href; override Home based on role
                             const targetHref = item.label === "Home" ? `/${userRole}` : item.href;
 
-                            // Logout uses a button with action
                             if (item.label === "Logout") {
                                 return (
                                     <button
                                         key={item.label}
-                                        onClick={item.action}
-                                        className="flex item-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-md hover:bg-[var(--lightSkye-color)]"
+                                        onClick={() => item.action?.()}
+                                        className="flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-md hover:bg-[var(--lightSkye-color)]"
                                     >
                                         <Image
                                             src={item.icon}
@@ -322,7 +298,7 @@ const Menu = () => {
                                 <Link
                                     href={targetHref}
                                     key={item.label}
-                                    className="flex item-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-md hover:bg-[var(--lightSkye-color)]"
+                                    className="flex items-center justify-center lg:justify-start gap-4 text-gray-500 py-2 md:px-2 rounded-md hover:bg-[var(--lightSkye-color)]"
                                 >
                                     <Image
                                         src={item.icon}
